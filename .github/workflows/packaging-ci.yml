@@ -1,0 +1,50 @@
+name: Packaging Contract
+
+on:
+  pull_request:
+    paths:
+      - "install.sh"
+      - "update.sh"
+      - "primevpn.sh"
+      - "primevpn.rc"
+      - "primevpn.service.*"
+      - "packaging/release/**"
+      - ".github/workflows/packaging-ci.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "install.sh"
+      - "update.sh"
+      - "primevpn.sh"
+      - "primevpn.rc"
+      - "primevpn.service.*"
+      - "packaging/release/**"
+      - ".github/workflows/packaging-ci.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate shell syntax
+        run: bash -n install.sh update.sh primevpn.sh primevpn.rc packaging/release/build-linux-amd64.sh
+      - name: Validate canonical lowercase release layout
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          for file in             primevpn.sh             primevpn.rc             primevpn.service.debian             primevpn.service.arch             primevpn.service.rhel
+          do
+            test -s "$file"
+          done
+
+          grep -q 'primevpn-linux-$(arch).tar.gz' install.sh
+          grep -q 'primevpn-linux-$(arch).tar.gz' update.sh
+          grep -q 'ARCHIVE="$OUTPUT_DIR/primevpn-linux-amd64.tar.gz"' packaging/release/build-linux-amd64.sh
+          grep -q 'STAGE/primevpn/primevpn' packaging/release/build-linux-amd64.sh
+
+          ! grep -q 'github.com/PrimeLinkPanel/PRIMEVPN' install.sh update.sh primevpn.sh
+          ! grep -q 'github.com/sh7CBAC/PRIMEVPN' install.sh update.sh primevpn.sh

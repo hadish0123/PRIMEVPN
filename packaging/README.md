@@ -21,3 +21,8 @@ installed versions:
 - `primevpn.service.arch`
 - `primevpn.service.debian`
 - `primevpn.service.rhel`
+
+The lowercase files above are the canonical release/runtime contract. Uppercase
+`PRIMEVPN.*` files remain temporarily as legacy compatibility entrypoints for
+older installs and raw GitHub URLs; new installers and release archives do not
+use them.

@@ -1,0 +1,18 @@
+#!/sbin/openrc-run
+
+command="/usr/local/primevpn/primevpn"
+command_background=true
+pidfile="/run/primevpn.pid"
+description="primevpn Service"
+procname="primevpn"
+depend() {
+    need net
+}
+start_pre(){
+    cd /usr/local/primevpn
+}
+reload() {
+  ebegin "Reloading ${RC_SVCNAME}"
+  kill -USR1 $(cat $pidfile)
+  eend $?
+}

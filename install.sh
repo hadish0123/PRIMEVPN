@@ -8,7 +8,7 @@ plain='\033[0m'
 
 cur_dir=$(pwd)
 
-xui_folder="${XUI_MAIN_FOLDER:=/usr/local/PRIMEVPN}"
+xui_folder="${XUI_MAIN_FOLDER:=/usr/local/primevpn}"
 xui_service="${XUI_SERVICE:=/etc/systemd/system}"
 
 # check root
@@ -155,9 +155,9 @@ prompt_or_default() {
 # Postgres env file (/etc/default/PRIMEVPN).
 write_install_result() {
     local u="$1" p="$2" port="$3" wbp="$4" scheme="$5" host="$6" token="$7" dbtype="$8"
-    local result_file="/etc/PRIMEVPN/install-result.env"
+    local result_file="/etc/primevpn/install-result.env"
     local url_host="${host:-SERVER_IP_UNKNOWN}"
-    install -d -m 755 /etc/PRIMEVPN 2> /dev/null
+    install -d -m 755 /etc/primevpn 2> /dev/null
     local prev_umask
     prev_umask=$(umask)
     umask 077
@@ -424,7 +424,7 @@ setup_ssl_certificate() {
     ~/.acme.sh/acme.sh --installcert --force -d ${domain} \
         --key-file /root/cert/${domain}/privkey.pem \
         --fullchain-file /root/cert/${domain}/fullchain.pem \
-        --reloadcmd "systemctl restart PRIMEVPN" > /dev/null 2>&1
+        --reloadcmd "systemctl restart primevpn" > /dev/null 2>&1
 
     if [ $? -ne 0 ]; then
         echo -e "${yellow}Failed to install certificate${plain}"
@@ -442,7 +442,7 @@ setup_ssl_certificate() {
     local webKeyFile="/root/cert/${domain}/privkey.pem"
 
     if [[ -f "$webCertFile" && -f "$webKeyFile" ]]; then
-        ${xui_folder}/PRIMEVPN cert -webCert "$webCertFile" -webCertKey "$webKeyFile" > /dev/null 2>&1
+        ${xui_folder}/primevpn cert -webCert "$webCertFile" -webCertKey "$webKeyFile" > /dev/null 2>&1
         echo -e "${green}SSL certificate installed and configured successfully!${plain}"
         return 0
     else
@@ -493,7 +493,7 @@ setup_ip_certificate() {
     fi
 
     # Set reload command for auto-renewal (add || true so it doesn't fail during first install)
-    local reloadCmd="systemctl restart PRIMEVPN 2>/dev/null || rc-service PRIMEVPN restart 2>/dev/null || true"
+    local reloadCmd="systemctl restart primevpn 2>/dev/null || rc-service primevpn restart 2>/dev/null || true"
 
     # Choose port for HTTP-01 listener (default 80, prompt override)
     local WebPort=""
@@ -591,7 +591,7 @@ setup_ip_certificate() {
 
     # Configure panel to use the certificate
     echo -e "${green}Setting certificate paths for the panel...${plain}"
-    ${xui_folder}/PRIMEVPN cert -webCert "${certDir}/fullchain.pem" -webCertKey "${certDir}/privkey.pem"
+    ${xui_folder}/primevpn cert -webCert "${certDir}/fullchain.pem" -webCertKey "${certDir}/privkey.pem"
 
     if [ $? -ne 0 ]; then
         echo -e "${yellow}Warning: Could not set certificate paths automatically${plain}"
@@ -610,8 +610,8 @@ setup_ip_certificate() {
 
 # Comprehensive manual SSL certificate issuance via acme.sh
 ssl_cert_issue() {
-    local existing_webBasePath=$(${xui_folder}/PRIMEVPN setting -show true | grep 'webBasePath:' | awk -F': ' '{print $2}' | tr -d '[:space:]' | sed 's#^/##')
-    local existing_port=$(${xui_folder}/PRIMEVPN setting -show true | grep 'port:' | awk -F': ' '{print $2}' | tr -d '[:space:]')
+    local existing_webBasePath=$(${xui_folder}/primevpn setting -show true | grep 'webBasePath:' | awk -F': ' '{print $2}' | tr -d '[:space:]' | sed 's#^/##')
+    local existing_port=$(${xui_folder}/primevpn setting -show true | grep 'port:' | awk -F': ' '{print $2}' | tr -d '[:space:]')
 
     # check for acme.sh first
     if ! command -v ~/.acme.sh/acme.sh &> /dev/null; then
@@ -704,7 +704,7 @@ ssl_cert_issue() {
 
     # Stop panel temporarily
     echo -e "${yellow}Stopping panel temporarily...${plain}"
-    systemctl stop PRIMEVPN 2> /dev/null || rc-service PRIMEVPN stop 2> /dev/null
+    systemctl stop primevpn 2> /dev/null || rc-service primevpn stop 2> /dev/null
 
     if [[ ${cert_exists} -eq 0 ]]; then
         # issue the certificate
@@ -714,7 +714,7 @@ ssl_cert_issue() {
         if [ $? -ne 0 ]; then
             echo -e "${red}Issuing certificate failed, please check logs.${plain}"
             rm -rf ~/.acme.sh/${domain} ~/.acme.sh/${domain}_ecc
-            systemctl start PRIMEVPN 2> /dev/null || rc-service PRIMEVPN start 2> /dev/null
+            systemctl start primevpn 2> /dev/null || rc-service primevpn start 2> /dev/null
             return 1
         else
             echo -e "${green}Issuing certificate succeeded, installing certificates...${plain}"
@@ -724,8 +724,8 @@ ssl_cert_issue() {
     fi
 
     # Setup reload command
-    reloadCmd="systemctl restart PRIMEVPN || rc-service PRIMEVPN restart"
-    echo -e "${green}Default --reloadcmd for ACME is: ${yellow}systemctl restart PRIMEVPN || rc-service PRIMEVPN restart${plain}"
+    reloadCmd="systemctl restart primevpn || rc-service primevpn restart"
+    echo -e "${green}Default --reloadcmd for ACME is: ${yellow}systemctl restart primevpn || rc-service primevpn restart${plain}"
     echo -e "${green}This command will run on every certificate issue and renew.${plain}"
     if [[ "$NONINTERACTIVE" == "1" ]]; then
         setReloadcmd="n"
@@ -733,14 +733,14 @@ ssl_cert_issue() {
         read -rp "Would you like to modify --reloadcmd for ACME? (y/n): " setReloadcmd
     fi
     if [[ "$setReloadcmd" == "y" || "$setReloadcmd" == "Y" ]]; then
-        echo -e "\n${green}\t1.${plain} Preset: systemctl reload nginx ; systemctl restart PRIMEVPN"
+        echo -e "\n${green}\t1.${plain} Preset: systemctl reload nginx ; systemctl restart primevpn"
         echo -e "${green}\t2.${plain} Input your own command"
         echo -e "${green}\t0.${plain} Keep default reloadcmd"
         read -rp "Choose an option: " choice
         case "$choice" in
             1)
-                echo -e "${green}Reloadcmd is: systemctl reload nginx ; systemctl restart PRIMEVPN${plain}"
-                reloadCmd="systemctl reload nginx ; systemctl restart PRIMEVPN"
+                echo -e "${green}Reloadcmd is: systemctl reload nginx ; systemctl restart primevpn${plain}"
+                reloadCmd="systemctl reload nginx ; systemctl restart primevpn"
                 ;;
             2)
                 echo -e "${yellow}It's recommended to put PRIMEVPN restart at the end${plain}"
@@ -773,7 +773,7 @@ ssl_cert_issue() {
         if [[ ${cert_exists} -eq 0 ]]; then
             rm -rf ~/.acme.sh/${domain} ~/.acme.sh/${domain}_ecc
         fi
-        systemctl start PRIMEVPN 2> /dev/null || rc-service PRIMEVPN start 2> /dev/null
+        systemctl start primevpn 2> /dev/null || rc-service primevpn start 2> /dev/null
         return 1
     fi
 
@@ -794,7 +794,7 @@ ssl_cert_issue() {
     fi
 
     # start panel
-    systemctl start PRIMEVPN 2> /dev/null || rc-service PRIMEVPN start 2> /dev/null
+    systemctl start primevpn 2> /dev/null || rc-service primevpn start 2> /dev/null
 
     # Prompt user to set panel paths after successful certificate installation
     if [[ "$NONINTERACTIVE" == "1" ]]; then
@@ -807,14 +807,14 @@ ssl_cert_issue() {
         local webKeyFile="/root/cert/${domain}/privkey.pem"
 
         if [[ -f "$webCertFile" && -f "$webKeyFile" ]]; then
-            ${xui_folder}/PRIMEVPN cert -webCert "$webCertFile" -webCertKey "$webKeyFile"
+            ${xui_folder}/primevpn cert -webCert "$webCertFile" -webCertKey "$webKeyFile"
             echo -e "${green}Certificate paths set for the panel${plain}"
             echo -e "${green}Certificate File: $webCertFile${plain}"
             echo -e "${green}Private Key File: $webKeyFile${plain}"
             echo ""
             echo -e "${green}Access URL: https://${domain}:${existing_port}/${existing_webBasePath}${plain}"
             echo -e "${yellow}Panel will restart to apply SSL certificate...${plain}"
-            systemctl restart PRIMEVPN 2> /dev/null || rc-service PRIMEVPN restart 2> /dev/null
+            systemctl restart primevpn 2> /dev/null || rc-service primevpn restart 2> /dev/null
         else
             echo -e "${red}Error: Certificate or private key file not found for domain: $domain.${plain}"
         fi
@@ -913,9 +913,9 @@ prompt_and_setup_ssl() {
 
             # Stop panel if running (port 80 needed)
             if [[ $release == "alpine" ]]; then
-                rc-service PRIMEVPN stop > /dev/null 2>&1
+                rc-service primevpn stop > /dev/null 2>&1
             else
-                systemctl stop PRIMEVPN > /dev/null 2>&1
+                systemctl stop primevpn > /dev/null 2>&1
             fi
 
             setup_ip_certificate "${server_ip}" "${ipv6_addr}"
@@ -973,7 +973,7 @@ prompt_and_setup_ssl() {
             done
 
             # 3.4 Apply Settings via PRIMEVPN binary
-            ${xui_folder}/PRIMEVPN cert -webCert "$custom_cert" -webCertKey "$custom_key" > /dev/null 2>&1
+            ${xui_folder}/primevpn cert -webCert "$custom_cert" -webCertKey "$custom_key" > /dev/null 2>&1
 
             # Set SSL_HOST for composing Panel URL
             if [[ -n "$custom_domain" ]]; then
@@ -985,7 +985,7 @@ prompt_and_setup_ssl() {
             echo -e "${green}✓ Custom certificate paths applied.${plain}"
             echo -e "${yellow}Note: You are responsible for renewing these files externally.${plain}"
 
-            systemctl restart PRIMEVPN > /dev/null 2>&1 || rc-service PRIMEVPN restart > /dev/null 2>&1
+            systemctl restart primevpn > /dev/null 2>&1 || rc-service primevpn restart > /dev/null 2>&1
             ;;
         4)
             echo ""
@@ -1007,7 +1007,7 @@ prompt_and_setup_ssl() {
                 read -rp "Bind the panel to 127.0.0.1 only? (recommended — forces SSH tunnel / reverse-proxy access) [y/N]: " bind_local
             fi
             if [[ "$bind_local" == "y" || "$bind_local" == "Y" ]]; then
-                ${xui_folder}/PRIMEVPN setting -listenIP "127.0.0.1" > /dev/null 2>&1
+                ${xui_folder}/primevpn setting -listenIP "127.0.0.1" > /dev/null 2>&1
                 SSL_HOST="127.0.0.1"
                 echo -e "${green}✓ Panel bound to 127.0.0.1 only. It is now unreachable from the public internet.${plain}"
                 echo ""
@@ -1024,7 +1024,7 @@ prompt_and_setup_ssl() {
                 echo -e "${yellow}Panel will listen on all interfaces over plain HTTP. Make sure something else is terminating TLS in front of it.${plain}"
             fi
 
-            systemctl restart PRIMEVPN > /dev/null 2>&1 || rc-service PRIMEVPN restart > /dev/null 2>&1
+            systemctl restart primevpn > /dev/null 2>&1 || rc-service primevpn restart > /dev/null 2>&1
             echo -e "${green}✓ SSL setup skipped.${plain}"
             ;;
         *)
@@ -1035,11 +1035,11 @@ prompt_and_setup_ssl() {
 }
 
 config_after_install() {
-    local existing_hasDefaultCredential=$(${xui_folder}/PRIMEVPN setting -show true | grep -Eo 'hasDefaultCredential: .+' | awk '{print $2}')
-    local existing_webBasePath=$(${xui_folder}/PRIMEVPN setting -show true | grep -Eo 'webBasePath: .+' | awk '{print $2}' | sed 's#^/##')
-    local existing_port=$(${xui_folder}/PRIMEVPN setting -show true | grep -Eo 'port: .+' | awk '{print $2}')
+    local existing_hasDefaultCredential=$(${xui_folder}/primevpn setting -show true | grep -Eo 'hasDefaultCredential: .+' | awk '{print $2}')
+    local existing_webBasePath=$(${xui_folder}/primevpn setting -show true | grep -Eo 'webBasePath: .+' | awk '{print $2}' | sed 's#^/##')
+    local existing_port=$(${xui_folder}/primevpn setting -show true | grep -Eo 'port: .+' | awk '{print $2}')
     # Properly detect empty cert by checking if cert: line exists and has content after it
-    local existing_cert=$(${xui_folder}/PRIMEVPN setting -getCert true | grep 'cert:' | awk -F': ' '{print $2}' | tr -d '[:space:]')
+    local existing_cert=$(${xui_folder}/primevpn setting -getCert true | grep 'cert:' | awk -F': ' '{print $2}' | tr -d '[:space:]')
     local URL_lists=(
         "https://api4.ipify.org"
         "https://ipv4.icanhazip.com"
@@ -1084,7 +1084,7 @@ config_after_install() {
             local config_password="${XUI_PASSWORD:-$(gen_random_string 10)}"
             local config_port=""
 
-            local db_label="SQLite (/etc/PRIMEVPN/PRIMEVPN.db)"
+            local db_label="SQLite (/etc/primevpn/primevpn.db)"
             echo ""
             echo -e "${green}═══════════════════════════════════════════${plain}"
             echo -e "${green}     Database Selection                    ${plain}"
@@ -1231,7 +1231,7 @@ EOF
                 fi
             fi
 
-            ${xui_folder}/PRIMEVPN setting -username "${config_username}" -password "${config_password}" -port "${config_port}" -webBasePath "${config_webBasePath}"
+            ${xui_folder}/primevpn setting -username "${config_username}" -password "${config_password}" -port "${config_port}" -webBasePath "${config_webBasePath}"
 
             echo ""
             echo -e "${green}═══════════════════════════════════════════${plain}"
@@ -1245,7 +1245,7 @@ EOF
             prompt_and_setup_ssl "${config_port}" "${config_webBasePath}" "${server_ip}"
 
             # Retrieve the API token for display
-            local config_apiToken=$(${xui_folder}/PRIMEVPN setting -getApiToken true | grep -Eo 'apiToken: .+' | awk '{print $2}')
+            local config_apiToken=$(${xui_folder}/primevpn setting -getApiToken true | grep -Eo 'apiToken: .+' | awk '{print $2}')
 
             # Display final credentials and access information
             echo ""
@@ -1306,7 +1306,7 @@ EOF
         else
             local config_webBasePath=$(gen_random_string 18)
             echo -e "${yellow}WebBasePath is missing or too short. Generating a new one...${plain}"
-            ${xui_folder}/PRIMEVPN setting -webBasePath "${config_webBasePath}"
+            ${xui_folder}/primevpn setting -webBasePath "${config_webBasePath}"
             echo -e "${green}New WebBasePath: ${config_webBasePath}${plain}"
 
             # If the panel is already installed but no certificate is configured, prompt for SSL now
@@ -1330,7 +1330,7 @@ EOF
             local config_password="${XUI_PASSWORD:-$(gen_random_string 10)}"
 
             echo -e "${yellow}Default credentials detected. Security update required...${plain}"
-            ${xui_folder}/PRIMEVPN setting -username "${config_username}" -password "${config_password}"
+            ${xui_folder}/primevpn setting -username "${config_username}" -password "${config_password}"
             echo -e "Generated new random login credentials:"
             echo -e "###############################################"
             echo -e "${green}Username: ${config_username}${plain}"
@@ -1339,7 +1339,7 @@ EOF
 
             # Persist a machine-parseable credentials file for cloud-init / MOTD.
             local config_apiToken
-            config_apiToken=$(${xui_folder}/PRIMEVPN setting -getApiToken true | grep -Eo 'apiToken: .+' | awk '{print $2}')
+            config_apiToken=$(${xui_folder}/primevpn setting -getApiToken true | grep -Eo 'apiToken: .+' | awk '{print $2}')
             : "${SSL_SCHEME:=https}"
             : "${SSL_HOST:=${server_ip}}"
             write_install_result "${config_username}" "${config_password}" "${existing_port}" \
@@ -1350,7 +1350,7 @@ EOF
 
         # Existing install: if no cert configured, prompt user for SSL setup
         # Properly detect empty cert by checking if cert: line exists and has content after it
-        existing_cert=$(${xui_folder}/PRIMEVPN setting -getCert true | grep 'cert:' | awk -F': ' '{print $2}' | tr -d '[:space:]')
+        existing_cert=$(${xui_folder}/primevpn setting -getCert true | grep 'cert:' | awk -F': ' '{print $2}' | tr -d '[:space:]')
         if [[ -z "$existing_cert" ]]; then
             echo ""
             echo -e "${green}═══════════════════════════════════════════${plain}"
@@ -1365,19 +1365,19 @@ EOF
         fi
     fi
 
-    ${xui_folder}/PRIMEVPN migrate
+    ${xui_folder}/primevpn migrate
 }
 
-# Lands a systemd unit file at ${xui_service}/PRIMEVPN.service via a temp file +
+# Lands a systemd unit file at ${xui_service}/primevpn.service via a temp file +
 # atomic mv, so a failed cp/curl or an interrupted mv never leaves a
 # truncated unit file at the live path -- systemd would then fail to parse
 # it on the next daemon-reload/start. Same pattern already used for
-# /usr/bin/PRIMEVPN elsewhere in this script. source_is_url picks cp (from a
+# /usr/bin/primevpn elsewhere in this script. source_is_url picks cp (from a
 # file already extracted from the release tarball) vs curl (GitHub fallback).
 _install_xui_service_unit() {
     local source="$1"
     local source_is_url="$2"
-    local dest="${xui_service}/PRIMEVPN.service"
+    local dest="${xui_service}/primevpn.service"
     local temp_file="${dest}.tmp.$$"
 
     rm -f "$temp_file"
@@ -1403,7 +1403,7 @@ _install_xui_service_unit() {
 }
 
 install_PRIMEVPN() {
-    cd ${xui_folder%/PRIMEVPN}/
+    cd ${xui_folder%/primevpn}/
 
     # Download resources
     if [ $# == 0 ]; then
@@ -1413,13 +1413,13 @@ install_PRIMEVPN() {
             exit 1
         fi
         echo -e "Got PRIMEVPN latest version: ${tag_version}, beginning the installation..."
-        curl -fLR --retry 5 --retry-delay 3 --connect-timeout 15 --max-time 300 -o ${xui_folder}-linux-$(arch).tar.gz https://github.com/hadish0123/PRIMEVPN/releases/download/${tag_version}/PRIMEVPN-linux-$(arch).tar.gz
+        curl -fLR --retry 5 --retry-delay 3 --connect-timeout 15 --max-time 300 -o primevpn-linux-$(arch).tar.gz https://github.com/hadish0123/PRIMEVPN/releases/download/${tag_version}/primevpn-linux-$(arch).tar.gz
         if [[ $? -ne 0 ]]; then
             echo -e "${red}Downloading PRIMEVPN failed, please be sure that your server can access GitHub ${plain}"
             exit 1
         fi
-        if [[ ! -s ${xui_folder}-linux-$(arch).tar.gz ]]; then
-            rm ${xui_folder}-linux-$(arch).tar.gz -f
+        if [[ ! -s primevpn-linux-$(arch).tar.gz ]]; then
+            rm primevpn-linux-$(arch).tar.gz -f
             echo -e "${red}Downloaded PRIMEVPN release archive is empty${plain}"
             exit 1
         fi
@@ -1441,39 +1441,55 @@ install_PRIMEVPN() {
             fi
         fi
 
-        url="https://github.com/hadish0123/PRIMEVPN/releases/download/${tag_version}/PRIMEVPN-linux-$(arch).tar.gz"
+        url="https://github.com/hadish0123/PRIMEVPN/releases/download/${tag_version}/primevpn-linux-$(arch).tar.gz"
         echo -e "Beginning to install PRIMEVPN ${tag_version}"
-        curl -fLR --retry 5 --retry-delay 3 --connect-timeout 15 --max-time 300 -o ${xui_folder}-linux-$(arch).tar.gz ${url}
+        curl -fLR --retry 5 --retry-delay 3 --connect-timeout 15 --max-time 300 -o primevpn-linux-$(arch).tar.gz ${url}
         if [[ $? -ne 0 ]]; then
             echo -e "${red}Download PRIMEVPN ${tag_version} failed, please check if the version exists ${plain}"
             exit 1
         fi
-        if [[ ! -s ${xui_folder}-linux-$(arch).tar.gz ]]; then
-            rm ${xui_folder}-linux-$(arch).tar.gz -f
+        if [[ ! -s primevpn-linux-$(arch).tar.gz ]]; then
+            rm primevpn-linux-$(arch).tar.gz -f
             echo -e "${red}Downloaded PRIMEVPN release archive is empty${plain}"
             exit 1
         fi
     fi
-    local xui_script_temp="/usr/bin/PRIMEVPN-temp.$$"
+    local xui_script_temp="/usr/bin/primevpn-temp.$$"
     rm -f "${xui_script_temp}"
-    curl -fLRo "${xui_script_temp}" https://raw.githubusercontent.com/hadish0123/PRIMEVPN/main/PRIMEVPN.sh
+    curl -fLRo "${xui_script_temp}" https://raw.githubusercontent.com/hadish0123/PRIMEVPN/main/primevpn.sh
     if [[ $? -ne 0 ]]; then
         rm -f "${xui_script_temp}"
-        echo -e "${red}Failed to download PRIMEVPN.sh${plain}"
+        echo -e "${red}Failed to download primevpn.sh${plain}"
         exit 1
     fi
     if [[ ! -s "${xui_script_temp}" ]]; then
         rm -f "${xui_script_temp}"
-        echo -e "${red}Downloaded PRIMEVPN.sh is empty${plain}"
+        echo -e "${red}Downloaded primevpn.sh is empty${plain}"
         exit 1
+    fi
+
+    # Backward compatibility: clean up the pre-canonical uppercase runtime
+    # layout before a reinstall. New installs use lowercase Linux paths/names.
+    if [[ "$xui_folder" == "/usr/local/primevpn" && -d "/usr/local/PRIMEVPN" && ! -d "$xui_folder" ]]; then
+        echo -e "${yellow}Legacy /usr/local/PRIMEVPN installation detected; migrating to /usr/local/primevpn.${plain}"
+        systemctl stop PRIMEVPN > /dev/null 2>&1 || true
+        systemctl disable PRIMEVPN > /dev/null 2>&1 || true
+        rm -f "${xui_service}/PRIMEVPN.service" > /dev/null 2>&1 || true
+        if [[ -f /etc/init.d/PRIMEVPN ]]; then
+            rc-service PRIMEVPN stop > /dev/null 2>&1 || true
+            rc-update del PRIMEVPN > /dev/null 2>&1 || true
+            rm -f /etc/init.d/PRIMEVPN
+        fi
+        rm -rf /usr/local/PRIMEVPN
+        systemctl daemon-reload > /dev/null 2>&1 || true
     fi
 
     # Stop PRIMEVPN service and remove old resources
     if [[ -e ${xui_folder}/ ]]; then
         if [[ $release == "alpine" ]]; then
-            rc-service PRIMEVPN stop
+            rc-service primevpn stop
         else
-            systemctl stop PRIMEVPN
+            systemctl stop primevpn
         fi
         # Kill any leftover mtg (MTProto) sidecars. PRIMEVPN runs them outside its own
         # lifecycle, so on Linux a stale one can survive the stop and keep holding
@@ -1485,23 +1501,23 @@ install_PRIMEVPN() {
 
     # Extract resources and set permissions
     echo -e "${green}Extracting PRIMEVPN package...${plain}"
-    tar zxf PRIMEVPN-linux-$(arch).tar.gz
+    tar zxf primevpn-linux-$(arch).tar.gz
     if [[ $? -ne 0 ]]; then
-        rm PRIMEVPN-linux-$(arch).tar.gz -f
+        rm primevpn-linux-$(arch).tar.gz -f
         rm -f "${xui_script_temp}"
         echo -e "${red}Failed to extract the PRIMEVPN release archive -- the previous installation has already been removed, so the panel will not start until this is fixed; try running the installer again${plain}"
         exit 1
     fi
     ensure_postgres_runtime_permissions
-    rm PRIMEVPN-linux-$(arch).tar.gz -f
+    rm primevpn-linux-$(arch).tar.gz -f
 
-    cd PRIMEVPN
-    if [[ $? -ne 0 || ! -s PRIMEVPN ]]; then
+    cd primevpn
+    if [[ $? -ne 0 || ! -s primevpn ]]; then
         rm -f "${xui_script_temp}"
         echo -e "${red}Extracted PRIMEVPN archive is missing the PRIMEVPN binary -- the previous installation has already been removed, so the panel will not start until this is fixed; try running the installer again${plain}"
         exit 1
     fi
-    chmod +x PRIMEVPN
+    chmod +x primevpn
     # Install Y-UI helper scripts from the release package when present.
     mkdir -p /usr/local/bin > /dev/null 2>&1
 
@@ -1521,7 +1537,7 @@ install_PRIMEVPN() {
         echo -e "${yellow}Warning: y-ui-migration-center.py was not found in the package.${plain}"
     fi
 
-    chmod +x PRIMEVPN.sh
+    chmod +x primevpn.sh
 
     # Check the system's architecture and rename the file accordingly.
     # The panel binary maps GOARCH=arm to "arm32" (internal/xray/process.go),
@@ -1534,7 +1550,7 @@ install_PRIMEVPN() {
             chmod +x bin/mtg-linux-arm
         fi
     fi
-    chmod +x PRIMEVPN bin/xray-linux-$(arch)
+    chmod +x primevpn bin/xray-linux-$(arch)
     if [[ -f bin/mtg-linux-arm ]]; then
         chmod +x bin/mtg-linux-arm
     elif [[ -f bin/mtg-linux-$(arch) ]]; then
@@ -1542,60 +1558,61 @@ install_PRIMEVPN() {
     fi
 
     # Update PRIMEVPN cli and se set permission
-    mv -f "${xui_script_temp}" /usr/bin/PRIMEVPN
+    mv -f "${xui_script_temp}" /usr/bin/primevpn
     if [[ $? -ne 0 ]]; then
         rm -f "${xui_script_temp}"
-        echo -e "${red}Failed to install PRIMEVPN.sh${plain}"
+        echo -e "${red}Failed to install primevpn.sh${plain}"
         exit 1
     fi
-    chmod +x /usr/bin/PRIMEVPN
-    mkdir -p /var/log/PRIMEVPN
+    chmod +x /usr/bin/primevpn
+    ln -sfn /usr/bin/primevpn /usr/bin/PRIMEVPN
+    mkdir -p /var/log/primevpn
     config_after_install
 
     # Etckeeper compatibility
     if [ -d "/etc/.git" ]; then
         if [ -f "/etc/.gitignore" ]; then
-            if ! grep -q "PRIMEVPN/PRIMEVPN.db" "/etc/.gitignore"; then
+            if ! grep -q "primevpn/primevpn.db" "/etc/.gitignore"; then
                 echo "" >> "/etc/.gitignore"
-                echo "PRIMEVPN/PRIMEVPN.db" >> "/etc/.gitignore"
-                echo -e "${green}Added PRIMEVPN.db to /etc/.gitignore for etckeeper${plain}"
+                echo "primevpn/primevpn.db" >> "/etc/.gitignore"
+                echo -e "${green}Added primevpn.db to /etc/.gitignore for etckeeper${plain}"
             fi
         else
-            echo "PRIMEVPN/PRIMEVPN.db" > "/etc/.gitignore"
-            echo -e "${green}Created /etc/.gitignore and added PRIMEVPN.db for etckeeper${plain}"
+            echo "primevpn/primevpn.db" > "/etc/.gitignore"
+            echo -e "${green}Created /etc/.gitignore and added primevpn.db for etckeeper${plain}"
         fi
     fi
 
     if [[ $release == "alpine" ]]; then
-        xui_rc_temp="/etc/init.d/PRIMEVPN.tmp.$$"
+        xui_rc_temp="/etc/init.d/primevpn.tmp.$$"
         rm -f "${xui_rc_temp}"
-        curl -fLRo "${xui_rc_temp}" https://raw.githubusercontent.com/hadish0123/PRIMEVPN/main/PRIMEVPN.rc
+        curl -fLRo "${xui_rc_temp}" https://raw.githubusercontent.com/hadish0123/PRIMEVPN/main/primevpn.rc
         if [[ $? -ne 0 ]]; then
             rm -f "${xui_rc_temp}"
-            echo -e "${red}Failed to download PRIMEVPN.rc${plain}"
+            echo -e "${red}Failed to download primevpn.rc${plain}"
             exit 1
         fi
         if [[ ! -s "${xui_rc_temp}" ]]; then
             rm -f "${xui_rc_temp}"
-            echo -e "${red}Downloaded PRIMEVPN.rc is empty${plain}"
+            echo -e "${red}Downloaded primevpn.rc is empty${plain}"
             exit 1
         fi
-        mv -f "${xui_rc_temp}" /etc/init.d/PRIMEVPN
+        mv -f "${xui_rc_temp}" /etc/init.d/primevpn
         if [[ $? -ne 0 ]]; then
             rm -f "${xui_rc_temp}"
-            echo -e "${red}Failed to install PRIMEVPN.rc${plain}"
+            echo -e "${red}Failed to install primevpn.rc${plain}"
             exit 1
         fi
-        chmod +x /etc/init.d/PRIMEVPN
-        rc-update add PRIMEVPN
-        rc-service PRIMEVPN start
+        chmod +x /etc/init.d/primevpn
+        rc-update add primevpn
+        rc-service primevpn start
     else
         # Install systemd service file
         service_installed=false
 
-        if [ -f "PRIMEVPN.service" ]; then
-            echo -e "${green}Found PRIMEVPN.service in extracted files, installing...${plain}"
-            if _install_xui_service_unit "PRIMEVPN.service" "false"; then
+        if [ -f "primevpn.service" ]; then
+            echo -e "${green}Found primevpn.service in extracted files, installing...${plain}"
+            if _install_xui_service_unit "primevpn.service" "false"; then
                 service_installed=true
             fi
         fi
@@ -1603,25 +1620,25 @@ install_PRIMEVPN() {
         if [ "$service_installed" = false ]; then
             case "${release}" in
                 ubuntu | debian | armbian)
-                    if [ -f "PRIMEVPN.service.debian" ]; then
-                        echo -e "${green}Found PRIMEVPN.service.debian in extracted files, installing...${plain}"
-                        if _install_xui_service_unit "PRIMEVPN.service.debian" "false"; then
+                    if [ -f "primevpn.service.debian" ]; then
+                        echo -e "${green}Found primevpn.service.debian in extracted files, installing...${plain}"
+                        if _install_xui_service_unit "primevpn.service.debian" "false"; then
                             service_installed=true
                         fi
                     fi
                     ;;
                 arch | manjaro | parch)
-                    if [ -f "PRIMEVPN.service.arch" ]; then
-                        echo -e "${green}Found PRIMEVPN.service.arch in extracted files, installing...${plain}"
-                        if _install_xui_service_unit "PRIMEVPN.service.arch" "false"; then
+                    if [ -f "primevpn.service.arch" ]; then
+                        echo -e "${green}Found primevpn.service.arch in extracted files, installing...${plain}"
+                        if _install_xui_service_unit "primevpn.service.arch" "false"; then
                             service_installed=true
                         fi
                     fi
                     ;;
                 *)
-                    if [ -f "PRIMEVPN.service.rhel" ]; then
-                        echo -e "${green}Found PRIMEVPN.service.rhel in extracted files, installing...${plain}"
-                        if _install_xui_service_unit "PRIMEVPN.service.rhel" "false"; then
+                    if [ -f "primevpn.service.rhel" ]; then
+                        echo -e "${green}Found primevpn.service.rhel in extracted files, installing...${plain}"
+                        if _install_xui_service_unit "primevpn.service.rhel" "false"; then
                             service_installed=true
                         fi
                     fi
@@ -1634,18 +1651,18 @@ install_PRIMEVPN() {
             echo -e "${yellow}Service files not found in tar.gz, downloading from GitHub...${plain}"
             case "${release}" in
                 ubuntu | debian | armbian)
-                    service_unit_url="https://raw.githubusercontent.com/hadish0123/PRIMEVPN/main/PRIMEVPN.service.debian"
+                    service_unit_url="https://raw.githubusercontent.com/hadish0123/PRIMEVPN/main/primevpn.service.debian"
                     ;;
                 arch | manjaro | parch)
-                    service_unit_url="https://raw.githubusercontent.com/hadish0123/PRIMEVPN/main/PRIMEVPN.service.arch"
+                    service_unit_url="https://raw.githubusercontent.com/hadish0123/PRIMEVPN/main/primevpn.service.arch"
                     ;;
                 *)
-                    service_unit_url="https://raw.githubusercontent.com/hadish0123/PRIMEVPN/main/PRIMEVPN.service.rhel"
+                    service_unit_url="https://raw.githubusercontent.com/hadish0123/PRIMEVPN/main/primevpn.service.rhel"
                     ;;
             esac
 
             if ! _install_xui_service_unit "$service_unit_url" "true"; then
-                echo -e "${red}Failed to install PRIMEVPN.service from GitHub${plain}"
+                echo -e "${red}Failed to install primevpn.service from GitHub${plain}"
                 exit 1
             fi
             service_installed=true
@@ -1653,13 +1670,13 @@ install_PRIMEVPN() {
 
         if [ "$service_installed" = true ]; then
             echo -e "${green}Setting up systemd unit...${plain}"
-            chown root:root ${xui_service}/PRIMEVPN.service > /dev/null 2>&1
-            chmod 644 ${xui_service}/PRIMEVPN.service > /dev/null 2>&1
+            chown root:root ${xui_service}/primevpn.service > /dev/null 2>&1
+            chmod 644 ${xui_service}/primevpn.service > /dev/null 2>&1
             systemctl daemon-reload
-            systemctl enable PRIMEVPN
-            systemctl start PRIMEVPN
+            systemctl enable primevpn
+            systemctl start primevpn
         else
-            echo -e "${red}Failed to install PRIMEVPN.service file${plain}"
+            echo -e "${red}Failed to install primevpn.service file${plain}"
             exit 1
         fi
     fi
