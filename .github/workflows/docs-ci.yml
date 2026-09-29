@@ -34,6 +34,13 @@ jobs:
           cache: pnpm
           cache-dependency-path: docs/pnpm-lock.yaml
 
+      - name: Reject corrupted Radix namespace
+        run: |
+          if grep -R --line-number --fixed-strings '@radiprimevpn/' package.json pnpm-lock.yaml content app components lib 2>/dev/null; then
+            echo "ERROR: corrupted @radiprimevpn namespace detected; use @radix-ui." >&2
+            exit 1
+          fi
+
       - run: pnpm install --frozen-lockfile
 
       - name: Typecheck
