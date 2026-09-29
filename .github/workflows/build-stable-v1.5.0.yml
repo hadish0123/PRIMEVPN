@@ -1,0 +1,109 @@
+name: Build Stable PRIMEVPN v1.5.0 Draft
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/build-stable-v1.5.0.yml"
+      - "packaging/release/build-linux-amd64.sh"
+      - "packaging/release/prepare-runtime-amd64.sh"
+      - "packaging/release/verify-release-archive.sh"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-draft:
+    name: Build and preserve stable draft
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout current source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Download recovered custom runtime
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -Eeuo pipefail
+          mkdir -p recovered
+          gh release download legacy-v1.0.0             --repo "$GITHUB_REPOSITORY"             --pattern "legacy-runtime-amd64.tar.gz"             --dir recovered
+          test -s recovered/legacy-runtime-amd64.tar.gz
+
+      - name: Prepare pinned runtime inputs
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          bash packaging/release/prepare-runtime-amd64.sh             recovered/legacy-runtime-amd64.tar.gz             runtime-release-inputs
+
+      - name: Build deterministic release archive
+        shell: bash
+        env:
+          PRIMEVPN_CUSTOM_XRAY: ${{ github.workspace }}/runtime-release-inputs/bin/xray-linux-amd64
+          PRIMEVPN_CUSTOM_XRAY_SHA256: 8255dd939c34cf966cc91517b6324dd3c8d0bcf49ffac8beca049a38c46845ed
+          PRIMEVPN_RUNTIME_BIN_DIR: ${{ github.workspace }}/runtime-release-inputs/bin
+          PRIMEVPN_RUNTIME_MANIFEST: ${{ github.workspace }}/runtime-release-inputs/RUNTIME_SOURCES
+        run: |
+          set -Eeuo pipefail
+          bash packaging/release/build-linux-amd64.sh
+
+      - name: Independently verify archive
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          VERSION="$(tr -d '[:space:]' < internal/config/version)"
+          SOURCE_HEAD="$(git rev-parse HEAD)"
+          bash packaging/release/verify-release-archive.sh             release-out/primevpn-linux-amd64.tar.gz             release-out/primevpn-linux-amd64.tar.gz.sha256             "$VERSION"             "$SOURCE_HEAD"
+
+      - name: Preserve build as workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: primevpn-v1.5.0-linux-amd64
+          retention-days: 90
+          if-no-files-found: error
+          path: |
+            release-out/primevpn-linux-amd64.tar.gz
+            release-out/primevpn-linux-amd64.tar.gz.sha256
+            runtime-release-inputs/RUNTIME_SOURCES
+            runtime-release-inputs/RUNTIME_SHA256SUMS
+
+      - name: Create or refresh draft release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -Eeuo pipefail
+          VERSION="$(tr -d '[:space:]' < internal/config/version)"
+          TAG="v$VERSION"
+          TITLE="PRIMEVPN $TAG"
+          NOTES="Stable PRIMEVPN linux-amd64 draft built from current main. Custom Xray was recovered from the verified PrimeLinkPanel v1.0.0 asset; MTG and geodata are pinned in RUNTIME_SOURCES. This draft must be published only after review."
+
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            IS_DRAFT="$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isDraft --jq .isDraft)"
+            test "$IS_DRAFT" = "true" || {
+              echo "ERROR: $TAG already exists as a published release; refusing to overwrite it." >&2
+              exit 1
+            }
+            gh release upload "$TAG"               release-out/primevpn-linux-amd64.tar.gz               release-out/primevpn-linux-amd64.tar.gz.sha256               runtime-release-inputs/RUNTIME_SOURCES               runtime-release-inputs/RUNTIME_SHA256SUMS               --clobber               --repo "$GITHUB_REPOSITORY"
+          else
+            gh release create "$TAG"               release-out/primevpn-linux-amd64.tar.gz               release-out/primevpn-linux-amd64.tar.gz.sha256               runtime-release-inputs/RUNTIME_SOURCES               runtime-release-inputs/RUNTIME_SHA256SUMS               --draft               --target "$GITHUB_SHA"               --title "$TITLE"               --notes "$NOTES"               --repo "$GITHUB_REPOSITORY"
+          fi
+
+          echo "STABLE_DRAFT=pass"

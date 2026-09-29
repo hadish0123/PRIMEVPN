@@ -74,6 +74,7 @@ REQUIRED_PATHS=(
     LICENSE
     RELEASE_VERSION
     RELEASE_MANIFEST
+    RUNTIME_SOURCES
     SHA256SUMS
     bin/xray-linux-amd64
     bin/mtg-linux-amd64
@@ -116,6 +117,7 @@ MANIFEST_ARCH="$(manifest_value ARCH)"
 MANIFEST_HEAD="$(manifest_value SOURCE_HEAD)"
 MANIFEST_PANEL_SHA="$(manifest_value PANEL_SHA256)"
 MANIFEST_XRAY_SHA="$(manifest_value CUSTOM_XRAY_SHA256)"
+MANIFEST_RUNTIME_SHA="$(manifest_value RUNTIME_SOURCES_SHA256)"
 
 test "$MANIFEST_VERSION" = "$EXPECTED_VERSION" ||
     fail "manifest VERSION mismatch"
@@ -124,6 +126,7 @@ test "$MANIFEST_ARCH" = "linux-amd64" ||
 test -n "$MANIFEST_HEAD" || fail "manifest SOURCE_HEAD is missing"
 test -n "$MANIFEST_PANEL_SHA" || fail "manifest PANEL_SHA256 is missing"
 test -n "$MANIFEST_XRAY_SHA" || fail "manifest CUSTOM_XRAY_SHA256 is missing"
+test -n "$MANIFEST_RUNTIME_SHA" || fail "manifest RUNTIME_SOURCES_SHA256 is missing"
 
 if [[ -n "$EXPECTED_SOURCE_HEAD" ]]; then
     test "$MANIFEST_HEAD" = "$EXPECTED_SOURCE_HEAD" ||
@@ -132,11 +135,14 @@ fi
 
 ACTUAL_PANEL_SHA="$(sha256sum "$ROOT/primevpn" | awk '{print $1}')"
 ACTUAL_XRAY_SHA="$(sha256sum "$ROOT/bin/xray-linux-amd64" | awk '{print $1}')"
+ACTUAL_RUNTIME_SHA="$(sha256sum "$ROOT/RUNTIME_SOURCES" | awk '{print $1}')"
 
 test "$ACTUAL_PANEL_SHA" = "$MANIFEST_PANEL_SHA" ||
     fail "panel SHA256 does not match RELEASE_MANIFEST"
 test "$ACTUAL_XRAY_SHA" = "$MANIFEST_XRAY_SHA" ||
     fail "custom Xray SHA256 does not match RELEASE_MANIFEST"
+test "$ACTUAL_RUNTIME_SHA" = "$MANIFEST_RUNTIME_SHA" ||
+    fail "runtime source manifest SHA256 does not match RELEASE_MANIFEST"
 
 file "$ROOT/bin/xray-linux-amd64" | grep -q 'statically linked' ||
     fail "custom Xray binary is not statically linked"
@@ -172,4 +178,5 @@ printf 'VERSION=%s\n' "$ACTUAL_VERSION"
 printf 'SOURCE_HEAD=%s\n' "$MANIFEST_HEAD"
 printf 'PANEL_SHA256=%s\n' "$ACTUAL_PANEL_SHA"
 printf 'CUSTOM_XRAY_SHA256=%s\n' "$ACTUAL_XRAY_SHA"
+printf 'RUNTIME_SOURCES_SHA256=%s\n' "$ACTUAL_RUNTIME_SHA"
 printf 'ARCHIVE_SHA256=%s\n' "$(sha256sum "$ARCHIVE" | awk '{print $1}')"

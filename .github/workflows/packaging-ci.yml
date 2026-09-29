@@ -31,7 +31,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Validate shell syntax
-        run: bash -n install.sh update.sh primevpn.sh primevpn.rc packaging/release/build-linux-amd64.sh packaging/release/verify-release-archive.sh packaging/release/publish-linux-amd64.sh
+        run: bash -n install.sh update.sh primevpn.sh primevpn.rc packaging/release/build-linux-amd64.sh packaging/release/prepare-runtime-amd64.sh packaging/release/verify-release-archive.sh packaging/release/publish-linux-amd64.sh
       - name: Validate canonical lowercase release layout
         shell: bash
         run: |

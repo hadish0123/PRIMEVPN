@@ -21,6 +21,7 @@ CUSTOM_XRAY="${PRIMEVPN_CUSTOM_XRAY:-}"
 EXPECTED_CUSTOM_XRAY_SHA256="${PRIMEVPN_CUSTOM_XRAY_SHA256:-}"
 EXPECTED_PANEL_SHA256="${PRIMEVPN_EXPECTED_PANEL_SHA256:-}"
 RUNTIME_BIN_DIR="${PRIMEVPN_RUNTIME_BIN_DIR:-/usr/local/primevpn/bin}"
+RUNTIME_MANIFEST="${PRIMEVPN_RUNTIME_MANIFEST:-$(dirname "$RUNTIME_BIN_DIR")/RUNTIME_SOURCES}"
 OUTPUT_DIR="${PRIMEVPN_RELEASE_OUTPUT_DIR:-$REPO_ROOT/release-out}"
 
 fail() {
@@ -60,8 +61,8 @@ ACTUAL_CUSTOM_XRAY_SHA256="$(
 test "$ACTUAL_CUSTOM_XRAY_SHA256" = "$EXPECTED_CUSTOM_XRAY_SHA256" ||
     fail "custom Xray SHA256 mismatch"
 
-test -n "$EXPECTED_PANEL_SHA256" ||
-    fail "PRIMEVPN_EXPECTED_PANEL_SHA256 is required"
+test -f "$RUNTIME_MANIFEST" ||
+    fail "runtime source manifest not found: $RUNTIME_MANIFEST"
 
 SOURCE_HEAD="$(git -C "$REPO_ROOT" rev-parse HEAD)"
 SOURCE_TREE="$(git -C "$REPO_ROOT" rev-parse HEAD^{tree})"
@@ -106,8 +107,9 @@ printf 'SOURCE_DATE_EPOCH=%s\n' "$SOURCE_DATE_EPOCH"
 printf 'BUILD_DATE=%s\n' "$BUILD_DATE"
 printf 'CUSTOM_XRAY=%s\n' "$CUSTOM_XRAY"
 printf 'CUSTOM_XRAY_SHA256=%s\n' "$ACTUAL_CUSTOM_XRAY_SHA256"
-printf 'EXPECTED_PANEL_SHA256=%s\n' "$EXPECTED_PANEL_SHA256"
+printf 'EXPECTED_PANEL_SHA256=%s\n' "${EXPECTED_PANEL_SHA256:-not-pinned}"
 printf 'RUNTIME_BIN_DIR=%s\n' "$RUNTIME_BIN_DIR"
+printf 'RUNTIME_MANIFEST=%s\n' "$RUNTIME_MANIFEST"
 printf 'OUTPUT_DIR=%s\n' "$OUTPUT_DIR"
 
 printf '\n===== EXPORT CLEAN SOURCE =====\n'
@@ -167,11 +169,18 @@ PANEL_SHA256="$(
     awk '{print $1}'
 )"
 
-test "$PANEL_SHA256" = "$EXPECTED_PANEL_SHA256" ||
-    fail "release panel SHA256 does not match validated live panel"
+PANEL_BUILD_RECIPE="source-build"
+PANEL_LIVE_PARITY="no"
+if [[ -n "$EXPECTED_PANEL_SHA256" ]]; then
+    test "$PANEL_SHA256" = "$EXPECTED_PANEL_SHA256" ||
+        fail "release panel SHA256 does not match externally pinned panel"
+    PANEL_BUILD_RECIPE="validated-live-parity"
+    PANEL_LIVE_PARITY="yes"
+fi
 
 printf 'PANEL_SHA256=%s\n' "$PANEL_SHA256"
-printf 'PANEL_LIVE_PARITY=yes\n'
+printf 'PANEL_BUILD_RECIPE=%s\n' "$PANEL_BUILD_RECIPE"
+printf 'PANEL_LIVE_PARITY=%s\n' "$PANEL_LIVE_PARITY"
 
 printf '\n===== ASSEMBLE RELEASE PAYLOAD =====\n'
 
@@ -255,6 +264,15 @@ do
         "$STAGE/primevpn/bin/$name"
 done
 
+install -m 0644 \
+    "$RUNTIME_MANIFEST" \
+    "$STAGE/primevpn/RUNTIME_SOURCES"
+
+RUNTIME_SOURCES_SHA256="$(
+    sha256sum "$STAGE/primevpn/RUNTIME_SOURCES" |
+    awk '{print $1}'
+)"
+
 printf '%s\n' "$VERSION" \
     > "$STAGE/primevpn/RELEASE_VERSION"
 
@@ -265,9 +283,11 @@ SOURCE_TREE=$SOURCE_TREE
 SOURCE_DATE_EPOCH=$SOURCE_DATE_EPOCH
 BUILD_DATE=$BUILD_DATE
 ARCH=linux-amd64
-PANEL_BUILD_RECIPE=validated-live-parity
+PANEL_BUILD_RECIPE=$PANEL_BUILD_RECIPE
+PANEL_LIVE_PARITY=$PANEL_LIVE_PARITY
 PANEL_SHA256=$PANEL_SHA256
 CUSTOM_XRAY_SHA256=$ACTUAL_CUSTOM_XRAY_SHA256
+RUNTIME_SOURCES_SHA256=$RUNTIME_SOURCES_SHA256
 MANIFEST
 
 (
@@ -340,6 +360,7 @@ REQUIRED_PATHS=(
     primevpn/LICENSE
     primevpn/RELEASE_VERSION
     primevpn/RELEASE_MANIFEST
+    primevpn/RUNTIME_SOURCES
     primevpn/SHA256SUMS
     primevpn/bin/xray-linux-amd64
     primevpn/bin/mtg-linux-amd64
@@ -433,11 +454,12 @@ printf 'RELEASE_VERSION=%s\n' "$VERSION"
 printf 'RELEASE_ARCH=linux-amd64\n'
 printf 'SOURCE_HEAD=%s\n' "$SOURCE_HEAD"
 printf 'SOURCE_TREE=%s\n' "$SOURCE_TREE"
-printf 'PANEL_BUILD_RECIPE=validated-live-parity\n'
-printf 'PANEL_LIVE_PARITY=yes\n'
+printf 'PANEL_BUILD_RECIPE=%s\n' "$PANEL_BUILD_RECIPE"
+printf 'PANEL_LIVE_PARITY=%s\n' "$PANEL_LIVE_PARITY"
 printf 'PANEL_SHA256=%s\n' "$PANEL_SHA256"
 printf 'CUSTOM_XRAY_SHA256=%s\n' "$VERIFIED_CUSTOM_XRAY_SHA256"
 printf 'CUSTOM_XRAY_MATCH=yes\n'
+printf 'RUNTIME_SOURCES_SHA256=%s\n' "$RUNTIME_SOURCES_SHA256"
 printf 'OURENUS_HTML_SHA256=%s\n' "$ARCHIVE_OURENUS_HTML_SHA256"
 printf 'OURENUS_PHP_SHA256=%s\n' "$ARCHIVE_OURENUS_PHP_SHA256"
 printf 'OURENUS_MATCH=yes\n'

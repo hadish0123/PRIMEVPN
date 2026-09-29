@@ -47,3 +47,19 @@ On the trusted release machine:
 
 Every published release is independently checked by the `Release PRIMEVPN`
 workflow and then installed from scratch by `Release Install Smoke Tests`.
+
+
+### Recovered v1.0.0 custom core
+
+The original PrimeLinkPanel `v1.0.0` release was mirrored into the current
+repository as the draft archival release `legacy-v1.0.0`. Its original archive
+SHA256 is:
+
+`e3d77d7b2e586b1ce6d2fc94078b31e5610ae88904c18932206986acf0c2ee01`
+
+The recovered custom Xray SHA256 is:
+
+`8255dd939c34cf966cc91517b6324dd3c8d0bcf49ffac8beca049a38c46845ed`
+
+`prepare-runtime-amd64.sh` combines that pinned custom core with pinned public
+MTG/geodata inputs and writes `RUNTIME_SOURCES` plus `RUNTIME_SHA256SUMS`.
