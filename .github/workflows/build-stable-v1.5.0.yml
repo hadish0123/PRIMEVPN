@@ -18,6 +18,7 @@ jobs:
     name: Build and preserve stable draft
     runs-on: ubuntu-latest
     timeout-minutes: 30
+
     steps:
       - name: Checkout current source
         uses: actions/checkout@v4
@@ -43,15 +44,35 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -Eeuo pipefail
-          mkdir -p recovered
-          gh release download legacy-v1.0.0             --repo "$GITHUB_REPOSITORY"             --pattern "legacy-runtime-amd64.tar.gz"             --dir recovered
-          test -s recovered/legacy-runtime-amd64.tar.gz
+          RECOVERED_DIR="$RUNNER_TEMP/primevpn-recovered"
+          rm -rf "$RECOVERED_DIR"
+          mkdir -p "$RECOVERED_DIR"
+
+          gh release download legacy-v1.0.0 \
+            --repo "$GITHUB_REPOSITORY" \
+            --pattern "legacy-runtime-amd64.tar.gz" \
+            --dir "$RECOVERED_DIR"
+
+          test -s "$RECOVERED_DIR/legacy-runtime-amd64.tar.gz"
 
       - name: Prepare pinned runtime inputs
         shell: bash
         run: |
           set -Eeuo pipefail
-          bash packaging/release/prepare-runtime-amd64.sh             recovered/legacy-runtime-amd64.tar.gz             runtime-release-inputs
+
+          bash packaging/release/prepare-runtime-amd64.sh \
+            "$RUNNER_TEMP/primevpn-recovered/legacy-runtime-amd64.tar.gz" \
+            "$RUNNER_TEMP/primevpn-runtime-release-inputs"
+
+          test -s "$RUNNER_TEMP/primevpn-runtime-release-inputs/bin/xray-linux-amd64"
+          test -s "$RUNNER_TEMP/primevpn-runtime-release-inputs/RUNTIME_SOURCES"
+
+      - name: Assert source tree is still clean
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          git status --short
+          test -z "$(git status --porcelain)"
 
       - name: Build deterministic release archive
         shell: bash
@@ -70,7 +91,12 @@ jobs:
           set -Eeuo pipefail
           VERSION="$(tr -d '[:space:]' < internal/config/version)"
           SOURCE_HEAD="$(git rev-parse HEAD)"
-          bash packaging/release/verify-release-archive.sh             release-out/primevpn-linux-amd64.tar.gz             release-out/primevpn-linux-amd64.tar.gz.sha256             "$VERSION"             "$SOURCE_HEAD"
+
+          bash packaging/release/verify-release-archive.sh \
+            release-out/primevpn-linux-amd64.tar.gz \
+            release-out/primevpn-linux-amd64.tar.gz.sha256 \
+            "$VERSION" \
+            "$SOURCE_HEAD"
 
       - name: Preserve build as workflow artifact
         uses: actions/upload-artifact@v4
@@ -95,15 +121,40 @@ jobs:
           TITLE="PRIMEVPN $TAG"
           NOTES="Stable PRIMEVPN linux-amd64 draft built from current main. Custom Xray was recovered from the verified PrimeLinkPanel v1.0.0 asset; MTG and geodata are pinned in RUNTIME_SOURCES. This draft must be published only after review."
 
+          ARCHIVE="release-out/primevpn-linux-amd64.tar.gz"
+          ARCHIVE_SHA="release-out/primevpn-linux-amd64.tar.gz.sha256"
+          RUNTIME_SOURCES="$RUNNER_TEMP/primevpn-runtime-release-inputs/RUNTIME_SOURCES"
+          RUNTIME_SHA="$RUNNER_TEMP/primevpn-runtime-release-inputs/RUNTIME_SHA256SUMS"
+
           if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            IS_DRAFT="$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isDraft --jq .isDraft)"
+            IS_DRAFT="$(gh release view "$TAG" \
+              --repo "$GITHUB_REPOSITORY" \
+              --json isDraft \
+              --jq .isDraft)"
+
             test "$IS_DRAFT" = "true" || {
               echo "ERROR: $TAG already exists as a published release; refusing to overwrite it." >&2
               exit 1
             }
-            gh release upload "$TAG"               release-out/primevpn-linux-amd64.tar.gz               release-out/primevpn-linux-amd64.tar.gz.sha256               runtime-release-inputs/RUNTIME_SOURCES               runtime-release-inputs/RUNTIME_SHA256SUMS               --clobber               --repo "$GITHUB_REPOSITORY"
+
+            gh release upload "$TAG" \
+              "$ARCHIVE" \
+              "$ARCHIVE_SHA" \
+              "$RUNTIME_SOURCES" \
+              "$RUNTIME_SHA" \
+              --clobber \
+              --repo "$GITHUB_REPOSITORY"
           else
-            gh release create "$TAG"               release-out/primevpn-linux-amd64.tar.gz               release-out/primevpn-linux-amd64.tar.gz.sha256               runtime-release-inputs/RUNTIME_SOURCES               runtime-release-inputs/RUNTIME_SHA256SUMS               --draft               --target "$GITHUB_SHA"               --title "$TITLE"               --notes "$NOTES"               --repo "$GITHUB_REPOSITORY"
+            gh release create "$TAG" \
+              "$ARCHIVE" \
+              "$ARCHIVE_SHA" \
+              "$RUNTIME_SOURCES" \
+              "$RUNTIME_SHA" \
+              --draft \
+              --target "$GITHUB_SHA" \
+              --title "$TITLE" \
+              --notes "$NOTES" \
+              --repo "$GITHUB_REPOSITORY"
           fi
 
           echo "STABLE_DRAFT=pass"
