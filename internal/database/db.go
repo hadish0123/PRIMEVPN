@@ -222,6 +222,7 @@ func postgresModelSettled(mdl any) bool {
 	}
 	return true
 }
+
 func dropLegacyForeignKeys() error {
 	if !IsPostgres() {
 		return nil
