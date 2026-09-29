@@ -72,7 +72,7 @@ jobs:
             "$VERSION" \
             "$SOURCE_HEAD"
 
-      - name: Publish verified stable release
+      - name: Finalize stable release metadata
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
@@ -81,24 +81,24 @@ jobs:
           VERSION="$(tr -d '[:space:]' < internal/config/version)"
           TAG="v$VERSION"
 
-          cat > /tmp/release-notes.md <<'EOF'
-# PRIMEVPN v1.5.0
-
-Stable Linux amd64 release from the canonical `hadish0123/PRIMEVPN` repository.
-
-### Highlights
-- Runtime-backed multi-profile inbounds.
-- Independent per-profile transport, TLS/REALITY, header and Sockopt controls.
-- Runtime listener collision validation.
-- Start-after-first-use client expiration synchronization.
-- Canonical lowercase Linux install/runtime layout.
-- Verified release manifest, runtime provenance, and SHA-256 checksums.
-
-### Runtime provenance
-The PRIMEVPN custom Xray binary was recovered from the checksum-verified historical v1.0.0 PRIMEVPN release and mirrored into this repository. MTProto and geodata assets are pinned to explicit public release versions and SHA-256 checksums in `RUNTIME_SOURCES`.
-
-The published archive was independently verified and passed a fresh non-interactive Ubuntu 24.04 installation smoke test.
-EOF
+          printf '%s\n' \
+            '# PRIMEVPN v1.5.0' \
+            '' \
+            'Stable Linux amd64 release from the canonical `hadish0123/PRIMEVPN` repository.' \
+            '' \
+            '### Highlights' \
+            '- Runtime-backed multi-profile inbounds.' \
+            '- Independent per-profile transport, TLS/REALITY, header and Sockopt controls.' \
+            '- Runtime listener collision validation.' \
+            '- Start-after-first-use client expiration synchronization.' \
+            '- Canonical lowercase Linux install/runtime layout.' \
+            '- Verified release manifest, runtime provenance, and SHA-256 checksums.' \
+            '' \
+            '### Runtime provenance' \
+            'The PRIMEVPN custom Xray binary was recovered from the checksum-verified historical v1.0.0 PRIMEVPN release and mirrored into this repository. MTProto and geodata assets are pinned to explicit public release versions and SHA-256 checksums in `RUNTIME_SOURCES`.' \
+            '' \
+            'The published archive was independently verified and passed a fresh non-interactive Ubuntu 24.04 installation smoke test.' \
+            > /tmp/release-notes.md
 
           gh release edit "$TAG" \
             --repo "$GITHUB_REPOSITORY" \
@@ -113,8 +113,6 @@ EOF
             gh release edit "$TAG" \
               --repo "$GITHUB_REPOSITORY" \
               --draft=false
-          else
-            echo "$TAG is already public; keeping the published release unchanged."
           fi
 
           test "$(gh release view "$TAG" \
