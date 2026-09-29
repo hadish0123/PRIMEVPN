@@ -4,10 +4,9 @@ description: نصب PRIMEVPN با اسکریپت رسمی (نسخهٔ پایدا
 icon: Download
 ---
 
-‏PRIMEVPN روی طیف گسترده‌ای از توزیع‌های Linux اجرا می‌شود — Ubuntu، Debian، Armbian،
-Fedora، CentOS، RHEL، AlmaLinux، Rocky Linux، Oracle Linux، Amazon Linux،
-Virtuozzo، Arch، Manjaro، openSUSE (Tumbleweed/Leap)، Alpine — و همچنین Windows،
-روی معماری‌های `amd64`، `386`، `arm64`، `armv7`، `armv6`، `armv5` و `s390x`.
+PRIMEVPN می‌تواند در محیط‌های مختلف اجرا شود، اما **آرشیو پایدار عمومی فعلی فقط
+برای Linux با معماری `amd64` منتشر می‌شود**. برای معماری‌های دیگر هنوز فایل
+Release پایدار PRIMEVPN منتشر نشده است.
 
 <Callout type="warn">
   نصب‌کنندهٔ اسکریپتی را به‌صورت **root** (یا با `sudo`) اجرا کنید. این اسکریپت یک
@@ -30,7 +29,7 @@ bash <(curl -Ls https://raw.githubusercontent.com/hadish0123/PRIMEVPN/main/insta
 برای نصب یک **نسخهٔ مشخص**، تگ آن را در انتها اضافه کنید:
 
 ```bash title="pinned version"
-bash <(curl -Ls https://raw.githubusercontent.com/hadish0123/PRIMEVPN/main/install.sh) v3.4.0
+bash <(curl -Ls https://raw.githubusercontent.com/hadish0123/PRIMEVPN/main/install.sh) v1.5.0
 ```
 
 برای نصب نسخهٔ **dev** غلتان (آخرین پیش‌انتشار به‌ازای هر کامیت از شاخهٔ `main`
@@ -81,7 +80,7 @@ docker run -d \
 
 <Tab value="Manual">
 
-برای کاربران پیشرفته، یک آرشیو انتشار متناسب با معماری خود را از
+برای کاربران پیشرفته، آرشیو انتشار فعلی Linux `amd64` را از
 [صفحهٔ releases](https://github.com/hadish0123/PRIMEVPN/releases) دانلود کنید، آن را
 استخراج کنید و باینری را به‌عنوان یک سرویس systemd اجرا کنید. اسکریپت نصب دقیقاً
 همین مراحل را خودکار می‌کند، بنابراین مگر اینکه دلیل خاصی برای نصب دستی داشته

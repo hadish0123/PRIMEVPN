@@ -4,10 +4,8 @@ description: 通过官方脚本（稳定版、指定版本或开发最新版）�
 icon: Download
 ---
 
-PRIMEVPN 可运行在多种 Linux 发行版上——Ubuntu、Debian、Armbian、
-Fedora、CentOS、RHEL、AlmaLinux、Rocky Linux、Oracle Linux、Amazon Linux、
-Virtuozzo、Arch、Manjaro、openSUSE（Tumbleweed/Leap）、Alpine——以及 Windows，
-覆盖 `amd64`、`386`、`arm64`、`armv7`、`armv6`、`armv5` 和 `s390x` 架构。
+PRIMEVPN 可以运行在多种环境中，但当前**公开稳定版仅发布 Linux `amd64`
+归档包**。其他架构目前尚未发布 PRIMEVPN 稳定版资产。
 
 <Callout type="warn">
   请以 **root** 身份（或使用 `sudo`）运行脚本安装程序。它会安装服务、
@@ -28,7 +26,7 @@ bash <(curl -Ls https://raw.githubusercontent.com/hadish0123/PRIMEVPN/main/insta
 在命令后附加标签即可安装**指定版本**：
 
 ```bash title="pinned version"
-bash <(curl -Ls https://raw.githubusercontent.com/hadish0123/PRIMEVPN/main/install.sh) v3.4.0
+bash <(curl -Ls https://raw.githubusercontent.com/hadish0123/PRIMEVPN/main/install.sh) v1.5.0
 ```
 
 传入 `dev-latest` 可安装滚动更新的**开发版**构建（来自 `main` 的最新逐提交预发布版本
@@ -80,7 +78,7 @@ docker run -d \
 <Tab value="Manual">
 
 高级用户可从[发布页面](https://github.com/hadish0123/PRIMEVPN/releases)
-下载适用于你架构的发布归档包，解压后
+下载当前 Linux `amd64` 发布归档包，解压后
 将二进制文件作为 systemd 服务运行。安装脚本正是将这些步骤自动化，
 因此除非你有特定理由要手动安装，否则更推荐使用脚本。
 

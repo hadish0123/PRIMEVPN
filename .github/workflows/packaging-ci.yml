@@ -31,12 +31,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Validate shell syntax
-        run: bash -n install.sh update.sh primevpn.sh primevpn.rc packaging/release/build-linux-amd64.sh
+        run: bash -n install.sh update.sh primevpn.sh primevpn.rc packaging/release/build-linux-amd64.sh packaging/release/verify-release-archive.sh packaging/release/publish-linux-amd64.sh
       - name: Validate canonical lowercase release layout
         shell: bash
         run: |
           set -Eeuo pipefail
-          for file in             primevpn.sh             primevpn.rc             primevpn.service.debian             primevpn.service.arch             primevpn.service.rhel
+          for file in \
+            primevpn.sh \
+            primevpn.rc \
+            primevpn.service.debian \
+            primevpn.service.arch \
+            primevpn.service.rhel
           do
             test -s "$file"
           done

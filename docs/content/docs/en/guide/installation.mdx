@@ -4,10 +4,9 @@ description: Install PRIMEVPN via the official script (stable, pinned, or dev-la
 icon: Download
 ---
 
-PRIMEVPN runs on a wide range of Linux distributions — Ubuntu, Debian, Armbian,
-Fedora, CentOS, RHEL, AlmaLinux, Rocky Linux, Oracle Linux, Amazon Linux,
-Virtuozzo, Arch, Manjaro, openSUSE (Tumbleweed/Leap), Alpine — and Windows,
-across `amd64`, `386`, `arm64`, `armv7`, `armv6`, `armv5`, and `s390x`.
+PRIMEVPN can run across several operating-system environments, but the current
+**stable public release archive is Linux `amd64` only**. Other architectures
+are not published as stable PRIMEVPN assets yet.
 
 <Callout type="warn">
   Run the script installer as **root** (or with `sudo`). It installs a service,
@@ -29,7 +28,7 @@ bash <(curl -Ls https://raw.githubusercontent.com/hadish0123/PRIMEVPN/main/insta
 Install a **specific version** by appending its tag:
 
 ```bash title="pinned version"
-bash <(curl -Ls https://raw.githubusercontent.com/hadish0123/PRIMEVPN/main/install.sh) v3.4.0
+bash <(curl -Ls https://raw.githubusercontent.com/hadish0123/PRIMEVPN/main/install.sh) v1.5.0
 ```
 
 Install the rolling **dev** build (the latest per-commit pre-release from `main`
@@ -80,7 +79,7 @@ holds TLS certificates, so your data survives upgrades.
 
 <Tab value="Manual">
 
-For advanced users, download a release archive for your architecture from the
+For advanced users, download the current Linux `amd64` release archive from the
 [releases page](https://github.com/hadish0123/PRIMEVPN/releases), extract it, and run
 the binary as a systemd service. The install script automates exactly these
 steps, so it's preferred unless you have a specific reason to install by hand.

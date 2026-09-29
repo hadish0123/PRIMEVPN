@@ -42,6 +42,16 @@ arch() {
 
 echo "Arch: $(arch)"
 
+require_supported_release_arch() {
+    local release_arch
+    release_arch="$(arch)"
+    if [[ "$release_arch" != "amd64" ]]; then
+        echo -e "${red}PRIMEVPN stable release artifacts currently support linux-amd64 only (detected: ${release_arch}).${plain}" >&2
+        echo -e "${yellow}No public release archive is published for this architecture yet.${plain}" >&2
+        exit 1
+    fi
+}
+
 # Non-interactive mode: triggered explicitly via XUI_NONINTERACTIVE=1, or
 # implicitly when stdin is not a TTY (e.g. `curl ... | bash`, cloud-init).
 # In this mode every prompt below is replaced by an env var or a sane default.
@@ -1403,6 +1413,7 @@ _install_xui_service_unit() {
 }
 
 install_PRIMEVPN() {
+    require_supported_release_arch
     cd ${xui_folder%/primevpn}/
 
     # Download resources
@@ -1433,7 +1444,7 @@ install_PRIMEVPN() {
             echo -e "${yellow}Installing the rolling dev build (tag: dev-latest). This is a per-commit pre-release, not a stable version.${plain}"
         else
             tag_version_numeric=${tag_version#v}
-            min_version="2.3.5"
+            min_version="1.5.0"
 
             if [[ "$(printf '%s\n' "$min_version" "$tag_version_numeric" | sort -V | head -n1)" != "$min_version" ]]; then
                 echo -e "${red}Please use a newer version (at least v2.3.5). Exiting installation.${plain}"

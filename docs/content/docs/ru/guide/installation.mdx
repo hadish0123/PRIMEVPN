@@ -4,10 +4,9 @@ description: Установите PRIMEVPN с помощью официальн�
 icon: Download
 ---
 
-PRIMEVPN работает на широком спектре дистрибутивов Linux — Ubuntu, Debian, Armbian,
-Fedora, CentOS, RHEL, AlmaLinux, Rocky Linux, Oracle Linux, Amazon Linux,
-Virtuozzo, Arch, Manjaro, openSUSE (Tumbleweed/Leap), Alpine — а также в Windows,
-на архитектурах `amd64`, `386`, `arm64`, `armv7`, `armv6`, `armv5` и `s390x`.
+PRIMEVPN может работать в разных окружениях, однако текущий **публичный
+стабильный архив выпускается только для Linux `amd64`**. Стабильные артефакты
+PRIMEVPN для других архитектур пока не публикуются.
 
 <Callout type="warn">
   Запускайте установочный скрипт от имени **root** (или через `sudo`). Он
@@ -30,7 +29,7 @@ bash <(curl -Ls https://raw.githubusercontent.com/hadish0123/PRIMEVPN/main/insta
 Чтобы установить **конкретную версию**, добавьте её тег:
 
 ```bash title="pinned version"
-bash <(curl -Ls https://raw.githubusercontent.com/hadish0123/PRIMEVPN/main/install.sh) v3.4.0
+bash <(curl -Ls https://raw.githubusercontent.com/hadish0123/PRIMEVPN/main/install.sh) v1.5.0
 ```
 
 Чтобы установить скользящую **dev**-сборку (последний предварительный релиз по
@@ -81,7 +80,7 @@ docker run -d \
 
 <Tab value="Manual">
 
-Опытные пользователи могут скачать архив релиза для своей архитектуры со
+Опытные пользователи могут скачать текущий архив релиза Linux `amd64` со
 [страницы релизов](https://github.com/hadish0123/PRIMEVPN/releases), распаковать его и
 запустить бинарный файл как службу systemd. Установочный скрипт автоматизирует
 ровно эти шаги, поэтому он предпочтительнее, если только у вас нет особой причины

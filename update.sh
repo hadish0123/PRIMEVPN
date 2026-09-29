@@ -111,6 +111,14 @@ arch() {
 
 echo "Arch: $(arch)"
 
+require_supported_release_arch() {
+    local release_arch
+    release_arch="$(arch)"
+    if [[ "$release_arch" != "amd64" ]]; then
+        _fail "ERROR: PRIMEVPN stable release artifacts currently support linux-amd64 only (detected: ${release_arch})."
+    fi
+}
+
 # Simple helpers
 is_ipv4() {
     [[ "$1" =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]] && return 0 || return 1
@@ -976,6 +984,7 @@ _install_xui_service_unit() {
 }
 
 update_PRIMEVPN() {
+    require_supported_release_arch
     cd "$(dirname "$target_xui_folder")"
 
     load_xui_env

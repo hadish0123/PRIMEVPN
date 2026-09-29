@@ -1,32 +1,55 @@
-name: PRIMEVPN Release Policy Check
+name: Release PRIMEVPN
 
 on:
+  release:
+    types: [published]
   workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing release tag to validate (for example v1.5.0)
+        required: true
+        type: string
 
 permissions:
   contents: read
 
 jobs:
-  verify-release-policy:
-    name: Verify custom-core release policy
+  validate-release:
+    name: Validate linux-amd64 release asset
     runs-on: ubuntu-latest
+    env:
+      RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag }}
 
     steps:
-      - name: Checkout repository
+      - name: Checkout release source
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.release.tag_name || inputs.tag }}
+          fetch-depth: 0
 
-      - name: Verify stable release configuration
+      - name: Validate source version and tag
         shell: bash
         run: |
           set -Eeuo pipefail
-
           VERSION="$(tr -d '[:space:]' < internal/config/version)"
+          test "$RELEASE_TAG" = "v$VERSION"
+          echo "SOURCE_HEAD=$(git rev-parse HEAD)"
 
-          test "$VERSION" = "1.5.0"
-          test -x packaging/release/build-linux-amd64.sh
-          test -x packaging/docker/init.sh
+      - name: Download published release assets
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -Eeuo pipefail
+          mkdir -p release-check
+          gh release download "$RELEASE_TAG"             --repo "${GITHUB_REPOSITORY}"             --pattern "primevpn-linux-amd64.tar.gz"             --pattern "primevpn-linux-amd64.tar.gz.sha256"             --dir release-check
+          test -s release-check/primevpn-linux-amd64.tar.gz
+          test -s release-check/primevpn-linux-amd64.tar.gz.sha256
 
-          echo "Stable release assets are built manually from audited source."
-          echo "The supported stable artifact is linux-amd64 only."
-          echo "The audited private custom core must be supplied explicitly."
-          echo "GitHub Actions does not build or publish stable assets."
+      - name: Verify release archive contract
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          VERSION="$(tr -d '[:space:]' < internal/config/version)"
+          SOURCE_HEAD="$(git rev-parse HEAD)"
+          bash packaging/release/verify-release-archive.sh             release-check/primevpn-linux-amd64.tar.gz             release-check/primevpn-linux-amd64.tar.gz.sha256             "$VERSION"             "$SOURCE_HEAD"
