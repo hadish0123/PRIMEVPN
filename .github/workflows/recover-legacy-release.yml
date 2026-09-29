@@ -41,36 +41,31 @@ jobs:
           echo "Legacy archive top-level entries:"
           find legacy-recovery/extracted -maxdepth 2 -mindepth 1 -printf '%P\n' | sort | head -200
 
-      - name: Recover audited runtime inputs
+      - name: Recover legacy runtime inputs
         shell: bash
         run: |
           set -Eeuo pipefail
 
           ROOT="legacy-recovery/extracted"
+          LEGACY_ROOT="$ROOT/PRIMEVPN"
           RUNTIME_OUT="legacy-recovery/runtime"
-          mkdir -p "$RUNTIME_OUT/bin"
 
-          find_one() {
-            local name="$1"
-            local found
-            found="$(find "$ROOT" -type f -name "$name" -print -quit)"
-            test -n "$found" || {
-              echo "ERROR: missing legacy runtime asset: $name" >&2
-              exit 1
-            }
-            printf '%s\n' "$found"
+          test -d "$LEGACY_ROOT/bin" || {
+            echo "ERROR: legacy archive does not contain PRIMEVPN/bin" >&2
+            exit 1
           }
 
-          for name in             xray-linux-amd64             mtg-linux-amd64             geoip.dat             geosite.dat             geoip_IR.dat             geosite_IR.dat             geoip_RU.dat             geosite_RU.dat
-          do
-            src="$(find_one "$name")"
-            cp -a "$src" "$RUNTIME_OUT/bin/$name"
-          done
+          mkdir -p "$RUNTIME_OUT"
+          cp -a "$LEGACY_ROOT/bin" "$RUNTIME_OUT/bin"
 
-          chmod 0755             "$RUNTIME_OUT/bin/xray-linux-amd64"             "$RUNTIME_OUT/bin/mtg-linux-amd64"
+          XRAY="$RUNTIME_OUT/bin/xray-linux-amd64"
+          test -f "$XRAY" || {
+            echo "ERROR: legacy custom Xray binary is missing" >&2
+            exit 1
+          }
 
-          file "$RUNTIME_OUT/bin/xray-linux-amd64"
-          file "$RUNTIME_OUT/bin/xray-linux-amd64" | grep -q 'statically linked'
+          chmod 0755 "$XRAY"
+          file "$XRAY"
 
           (
             cd "$RUNTIME_OUT"
@@ -85,13 +80,25 @@ jobs:
             echo "RECOVERED_AT_UTC=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
             echo "CURRENT_REPOSITORY=$GITHUB_REPOSITORY"
             echo "CURRENT_SOURCE_HEAD=$GITHUB_SHA"
-            echo "CUSTOM_XRAY_SHA256=$(sha256sum "$RUNTIME_OUT/bin/xray-linux-amd64" | awk '{print $1}')"
+            echo "CUSTOM_XRAY_SHA256=$(sha256sum "$XRAY" | awk '{print $1}')"
+            echo "LEGACY_BIN_FILE_COUNT=$(find "$RUNTIME_OUT/bin" -type f | wc -l | tr -d ' ')"
           } > "$RUNTIME_OUT/RECOVERY_MANIFEST"
 
-          tar             --sort=name             --owner=0             --group=0             --numeric-owner             -C "$RUNTIME_OUT"             -czf legacy-recovery/legacy-runtime-amd64.tar.gz             bin SHA256SUMS RECOVERY_MANIFEST
+          tar \
+            --sort=name \
+            --owner=0 \
+            --group=0 \
+            --numeric-owner \
+            -C "$RUNTIME_OUT" \
+            -czf legacy-recovery/legacy-runtime-amd64.tar.gz \
+            bin SHA256SUMS RECOVERY_MANIFEST
 
-          sha256sum legacy-recovery/legacy-runtime-amd64.tar.gz             > legacy-recovery/legacy-runtime-amd64.tar.gz.sha256
+          sha256sum legacy-recovery/legacy-runtime-amd64.tar.gz \
+            > legacy-recovery/legacy-runtime-amd64.tar.gz.sha256
 
+          echo "Recovered legacy bin inventory:"
+          find "$RUNTIME_OUT/bin" -maxdepth 1 -type f -printf '%f\n' | sort
+          echo
           echo "Recovered runtime checksums:"
           cat "$RUNTIME_OUT/SHA256SUMS"
           echo
