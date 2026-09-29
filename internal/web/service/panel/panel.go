@@ -40,7 +40,7 @@ type PanelUpdateInfo struct {
 }
 
 const (
-	panelUpdaterURL      = "https://raw.githubusercontent.com/sh7CBAC/PRIMEVPN/main/update.sh"
+	panelUpdaterURL      = "https://raw.githubusercontent.com/hadish0123/PRIMEVPN/main/update.sh"
 	maxPanelUpdaterBytes = 2 << 20
 	// devReleaseTag is the fixed-tag rolling pre-release the CI force-moves to the
 	// newest main commit; the dev update channel installs from it.
@@ -413,9 +413,9 @@ func fetchLatestPanelVersion() (string, error) {
 // fetchPanelRelease fetches a release from GitHub. An empty tag resolves the
 // latest stable release; a non-empty tag (e.g. dev-latest) resolves that tag.
 func fetchPanelRelease(tag string) (*service.Release, error) {
-	url := "https://api.github.com/repos/sh7CBAC/PRIMEVPN/releases/latest"
+	url := "https://api.github.com/repos/hadish0123/PRIMEVPN/releases/latest"
 	if tag != "" {
-		url = "https://api.github.com/repos/sh7CBAC/PRIMEVPN/releases/tags/" + tag
+		url = "https://api.github.com/repos/hadish0123/PRIMEVPN/releases/tags/" + tag
 	}
 	client := (&service.SettingService{}).NewProxiedHTTPClient(10 * time.Second)
 	req, reqErr := http.NewRequestWithContext(context.Background(), http.MethodGet, url, nil)

@@ -1407,13 +1407,13 @@ install_PRIMEVPN() {
 
     # Download resources
     if [ $# == 0 ]; then
-        tag_version=$(curl -Ls --retry 5 --retry-delay 3 --connect-timeout 15 --max-time 60 "https://api.github.com/repos/PrimeLinkPanel/PRIMEVPN/releases/latest" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+        tag_version=$(curl -Ls --retry 5 --retry-delay 3 --connect-timeout 15 --max-time 60 "https://api.github.com/repos/hadish0123/PRIMEVPN/releases/latest" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
         if [[ ! -n "$tag_version" ]]; then
             echo -e "${red}Failed to fetch PRIMEVPN version, it may be due to GitHub API restrictions, please try it later${plain}"
             exit 1
         fi
         echo -e "Got PRIMEVPN latest version: ${tag_version}, beginning the installation..."
-        curl -fLR --retry 5 --retry-delay 3 --connect-timeout 15 --max-time 300 -o ${xui_folder}-linux-$(arch).tar.gz https://github.com/PrimeLinkPanel/PRIMEVPN/releases/download/${tag_version}/PRIMEVPN-linux-$(arch).tar.gz
+        curl -fLR --retry 5 --retry-delay 3 --connect-timeout 15 --max-time 300 -o ${xui_folder}-linux-$(arch).tar.gz https://github.com/hadish0123/PRIMEVPN/releases/download/${tag_version}/PRIMEVPN-linux-$(arch).tar.gz
         if [[ $? -ne 0 ]]; then
             echo -e "${red}Downloading PRIMEVPN failed, please be sure that your server can access GitHub ${plain}"
             exit 1
@@ -1441,7 +1441,7 @@ install_PRIMEVPN() {
             fi
         fi
 
-        url="https://github.com/PrimeLinkPanel/PRIMEVPN/releases/download/${tag_version}/PRIMEVPN-linux-$(arch).tar.gz"
+        url="https://github.com/hadish0123/PRIMEVPN/releases/download/${tag_version}/PRIMEVPN-linux-$(arch).tar.gz"
         echo -e "Beginning to install PRIMEVPN ${tag_version}"
         curl -fLR --retry 5 --retry-delay 3 --connect-timeout 15 --max-time 300 -o ${xui_folder}-linux-$(arch).tar.gz ${url}
         if [[ $? -ne 0 ]]; then
@@ -1456,7 +1456,7 @@ install_PRIMEVPN() {
     fi
     local xui_script_temp="/usr/bin/PRIMEVPN-temp.$$"
     rm -f "${xui_script_temp}"
-    curl -fLRo "${xui_script_temp}" https://raw.githubusercontent.com/PrimeLinkPanel/PRIMEVPN/main/PRIMEVPN.sh
+    curl -fLRo "${xui_script_temp}" https://raw.githubusercontent.com/hadish0123/PRIMEVPN/main/PRIMEVPN.sh
     if [[ $? -ne 0 ]]; then
         rm -f "${xui_script_temp}"
         echo -e "${red}Failed to download PRIMEVPN.sh${plain}"
@@ -1569,7 +1569,7 @@ install_PRIMEVPN() {
     if [[ $release == "alpine" ]]; then
         xui_rc_temp="/etc/init.d/PRIMEVPN.tmp.$$"
         rm -f "${xui_rc_temp}"
-        curl -fLRo "${xui_rc_temp}" https://raw.githubusercontent.com/PrimeLinkPanel/PRIMEVPN/main/PRIMEVPN.rc
+        curl -fLRo "${xui_rc_temp}" https://raw.githubusercontent.com/hadish0123/PRIMEVPN/main/PRIMEVPN.rc
         if [[ $? -ne 0 ]]; then
             rm -f "${xui_rc_temp}"
             echo -e "${red}Failed to download PRIMEVPN.rc${plain}"
@@ -1634,13 +1634,13 @@ install_PRIMEVPN() {
             echo -e "${yellow}Service files not found in tar.gz, downloading from GitHub...${plain}"
             case "${release}" in
                 ubuntu | debian | armbian)
-                    service_unit_url="https://raw.githubusercontent.com/PrimeLinkPanel/PRIMEVPN/main/PRIMEVPN.service.debian"
+                    service_unit_url="https://raw.githubusercontent.com/hadish0123/PRIMEVPN/main/PRIMEVPN.service.debian"
                     ;;
                 arch | manjaro | parch)
-                    service_unit_url="https://raw.githubusercontent.com/PrimeLinkPanel/PRIMEVPN/main/PRIMEVPN.service.arch"
+                    service_unit_url="https://raw.githubusercontent.com/hadish0123/PRIMEVPN/main/PRIMEVPN.service.arch"
                     ;;
                 *)
-                    service_unit_url="https://raw.githubusercontent.com/PrimeLinkPanel/PRIMEVPN/main/PRIMEVPN.service.rhel"
+                    service_unit_url="https://raw.githubusercontent.com/hadish0123/PRIMEVPN/main/PRIMEVPN.service.rhel"
                     ;;
             esac
 

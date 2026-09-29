@@ -22,20 +22,20 @@ Virtuozzo、Arch、Manjaro、openSUSE（Tumbleweed/Leap）、Alpine——以及 
 并安装 `primevpn` 管理命令。
 
 ```bash title="latest stable"
-bash <(curl -Ls https://raw.githubusercontent.com/sh7CBAC/PRIMEVPN/main/install.sh)
+bash <(curl -Ls https://raw.githubusercontent.com/hadish0123/PRIMEVPN/main/install.sh)
 ```
 
 在命令后附加标签即可安装**指定版本**：
 
 ```bash title="pinned version"
-bash <(curl -Ls https://raw.githubusercontent.com/sh7CBAC/PRIMEVPN/main/install.sh) v3.4.0
+bash <(curl -Ls https://raw.githubusercontent.com/hadish0123/PRIMEVPN/main/install.sh) v3.4.0
 ```
 
 传入 `dev-latest` 可安装滚动更新的**开发版**构建（来自 `main` 的最新逐提交预发布版本
 ——并非稳定版）：
 
 ```bash title="rolling dev build"
-bash <(curl -Ls https://raw.githubusercontent.com/sh7CBAC/PRIMEVPN/main/install.sh) dev-latest
+bash <(curl -Ls https://raw.githubusercontent.com/hadish0123/PRIMEVPN/main/install.sh) dev-latest
 ```
 
 安装完成后，记下打印出的登录信息并运行 `primevpn` 打开
@@ -69,7 +69,7 @@ docker run -d \
   --network=host \
   --restart=unless-stopped \
   --name PRIMEVPN \
-  ghcr.io/sh7cbac/primevpn:latest
+  ghcr.io/hadish0123/primevpn:latest
 ```
 
 `db/` 卷保存 SQLite 数据库（`/etc/primevpn/primevpn.db`），`cert/`
@@ -79,7 +79,7 @@ docker run -d \
 
 <Tab value="Manual">
 
-高级用户可从[发布页面](https://github.com/sh7CBAC/PRIMEVPN/releases)
+高级用户可从[发布页面](https://github.com/hadish0123/PRIMEVPN/releases)
 下载适用于你架构的发布归档包，解压后
 将二进制文件作为 systemd 服务运行。安装脚本正是将这些步骤自动化，
 因此除非你有特定理由要手动安装，否则更推荐使用脚本。
@@ -112,10 +112,10 @@ docker run -d \
 `/etc/primevpn/install-result.env`：
 
 ```bash
-XUI_NONINTERACTIVE=1 bash <(curl -Ls https://raw.githubusercontent.com/sh7CBAC/PRIMEVPN/main/install.sh)
+XUI_NONINTERACTIVE=1 bash <(curl -Ls https://raw.githubusercontent.com/hadish0123/PRIMEVPN/main/install.sh)
 ```
 
-仓库的 [`deploy/`](https://github.com/sh7CBAC/PRIMEVPN/tree/main/deploy)
+仓库的 [`deploy/`](https://github.com/hadish0123/PRIMEVPN/tree/main/deploy)
 目录提供了现成的 **cloud-init** user-data，可用于在任意云平台上进行无人值守安装
 （Hetzner、AWS、DigitalOcean、Vultr、GCP、Azure、Oracle）。
 

@@ -960,13 +960,13 @@ update_PRIMEVPN() {
         tag_version="${XUI_UPDATE_TAG}"
         echo -e "${green}Using update tag: ${tag_version}${plain}"
     else
-        tag_version=$(${curl_bin} -Ls "https://api.github.com/repos/PrimeLinkPanel/PRIMEVPN/releases/latest" 2> /dev/null | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+        tag_version=$(${curl_bin} -Ls "https://api.github.com/repos/hadish0123/PRIMEVPN/releases/latest" 2> /dev/null | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
         if [[ ! -n "$tag_version" ]]; then
             _fail "ERROR: Failed to fetch PRIMEVPN version, it may be due to GitHub API restrictions, please try it later"
         fi
     fi
     echo -e "Got PRIMEVPN latest version: ${tag_version}, beginning the installation..."
-    ${curl_bin} -fLRo ${xui_folder}-linux-$(arch).tar.gz https://github.com/PrimeLinkPanel/PRIMEVPN/releases/download/${tag_version}/PRIMEVPN-linux-$(arch).tar.gz 2> /dev/null
+    ${curl_bin} -fLRo ${xui_folder}-linux-$(arch).tar.gz https://github.com/hadish0123/PRIMEVPN/releases/download/${tag_version}/PRIMEVPN-linux-$(arch).tar.gz 2> /dev/null
     if [[ $? -ne 0 ]]; then
         _fail "ERROR: Failed to download PRIMEVPN, please be sure that your server can access GitHub"
     fi
@@ -1077,7 +1077,7 @@ update_PRIMEVPN() {
     echo -e "${green}Downloading and installing PRIMEVPN.sh script...${plain}"
     local xui_script_temp="/usr/bin/PRIMEVPN-temp.$$"
     rm -f "${xui_script_temp}"
-    ${curl_bin} -fLRo "${xui_script_temp}" https://raw.githubusercontent.com/PrimeLinkPanel/PRIMEVPN/main/PRIMEVPN.sh > /dev/null 2>&1
+    ${curl_bin} -fLRo "${xui_script_temp}" https://raw.githubusercontent.com/hadish0123/PRIMEVPN/main/PRIMEVPN.sh > /dev/null 2>&1
     if [[ $? -ne 0 ]]; then
         rm -f "${xui_script_temp}"
         _fail "ERROR: Failed to download PRIMEVPN.sh script, please be sure that your server can access GitHub"
@@ -1108,7 +1108,7 @@ update_PRIMEVPN() {
         echo -e "${green}Downloading and installing startup unit PRIMEVPN.rc...${plain}"
         xui_rc_temp="/etc/init.d/PRIMEVPN.tmp.$$"
         rm -f "${xui_rc_temp}"
-        ${curl_bin} -fLRo "${xui_rc_temp}" https://raw.githubusercontent.com/PrimeLinkPanel/PRIMEVPN/main/PRIMEVPN.rc > /dev/null 2>&1
+        ${curl_bin} -fLRo "${xui_rc_temp}" https://raw.githubusercontent.com/hadish0123/PRIMEVPN/main/PRIMEVPN.rc > /dev/null 2>&1
         if [[ $? -ne 0 ]]; then
             rm -f "${xui_rc_temp}"
             _fail "ERROR: Failed to download startup unit PRIMEVPN.rc, please be sure that your server can access GitHub"
@@ -1167,13 +1167,13 @@ update_PRIMEVPN() {
                 echo -e "${yellow}Service files not found in tar.gz, downloading from GitHub...${plain}"
                 case "${release}" in
                     ubuntu | debian | armbian)
-                        service_unit_url="https://raw.githubusercontent.com/PrimeLinkPanel/PRIMEVPN/main/PRIMEVPN.service.debian"
+                        service_unit_url="https://raw.githubusercontent.com/hadish0123/PRIMEVPN/main/PRIMEVPN.service.debian"
                         ;;
                     arch | manjaro | parch)
-                        service_unit_url="https://raw.githubusercontent.com/PrimeLinkPanel/PRIMEVPN/main/PRIMEVPN.service.arch"
+                        service_unit_url="https://raw.githubusercontent.com/hadish0123/PRIMEVPN/main/PRIMEVPN.service.arch"
                         ;;
                     *)
-                        service_unit_url="https://raw.githubusercontent.com/PrimeLinkPanel/PRIMEVPN/main/PRIMEVPN.service.rhel"
+                        service_unit_url="https://raw.githubusercontent.com/hadish0123/PRIMEVPN/main/PRIMEVPN.service.rhel"
                         ;;
                 esac
 

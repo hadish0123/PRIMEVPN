@@ -50,7 +50,7 @@ Cross-building the Linux SQLite target from Windows (or vice versa) requires a s
 ## First-time setup
 
 ```bash
-git clone https://github.com/sh7CBAC/PRIMEVPN.git
+git clone https://github.com/hadish0123/PRIMEVPN.git
 cd PRIMEVPN
 
 cp .env.example .env
@@ -312,6 +312,6 @@ must match the override, for example `XUI_PORT: "8080"` with `ports: ["8080:8080
 
 ## Issues
 
-- Bug reports and feature requests: [GitHub Issues](https://github.com/sh7CBAC/PRIMEVPN/issues)
+- Bug reports and feature requests: [GitHub Issues](https://github.com/hadish0123/PRIMEVPN/issues)
 
 Before filing a bug, include the OS, Go version, panel version (`/panel/api/server/status` or the dashboard footer), and the relevant excerpt from `primevpn/3xui.log`.

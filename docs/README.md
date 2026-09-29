@@ -11,13 +11,13 @@
 
 <p align="center">
   The official documentation and product site for
-  <a href="https://github.com/sh7CBAC/PRIMEVPN"><b>PRIMEVPN</b></a> —
+  <a href="https://github.com/hadish0123/PRIMEVPN"><b>PRIMEVPN</b></a> —
   an advanced web panel for managing Xray-core servers.
 </p>
 
 <p align="center">
   <a href="https://docs.sanaei.dev"><img src="https://img.shields.io/badge/docs-docs.sanaei.dev-22d3ee?style=flat-square" alt="Live site" /></a>
-  <a href="https://github.com/sh7CBAC/PRIMEVPN/actions/workflows/docs-ci.yml"><img src="https://github.com/sh7CBAC/PRIMEVPN/actions/workflows/docs-ci.yml/badge.svg" alt="CI" /></a>
+  <a href="https://github.com/hadish0123/PRIMEVPN/actions/workflows/docs-ci.yml"><img src="https://github.com/hadish0123/PRIMEVPN/actions/workflows/docs-ci.yml/badge.svg" alt="CI" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-GPL--3.0-blue?style=flat-square" alt="License: GPL-3.0" /></a>
   <img src="https://img.shields.io/badge/Next.js-16-black?style=flat-square&logo=next.js" alt="Next.js 16" />
   <img src="https://img.shields.io/badge/Fumadocs-16-0ea5e9?style=flat-square" alt="Fumadocs 16" />
@@ -31,7 +31,7 @@
 
 ## Overview
 
-This directory (`docs/` in the [PRIMEVPN](https://github.com/sh7CBAC/PRIMEVPN) monorepo) contains
+This directory (`docs/` in the [PRIMEVPN](https://github.com/hadish0123/PRIMEVPN) monorepo) contains
 the source for [docs.sanaei.dev](https://docs.sanaei.dev) — a static-first documentation and
 marketing site built with [Fumadocs](https://fumadocs.dev) on Next.js. It has **no backend,
 no database, and no auth**: every page is prerendered and every tool runs entirely in the
