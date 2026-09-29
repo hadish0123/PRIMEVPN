@@ -1,0 +1,130 @@
+name: Recover Legacy PrimeLinkPanel Release
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/recover-legacy-release.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  recover:
+    name: Mirror v1.0.0 release inputs
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout current repository
+        uses: actions/checkout@v4
+
+      - name: Download and verify legacy release
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+
+          LEGACY_URL="https://github.com/PrimeLinkPanel/PRIMEVPN/releases/download/v1.0.0/PRIMEVPN-linux-amd64.tar.gz"
+          LEGACY_SHA="e3d77d7b2e586b1ce6d2fc94078b31e5610ae88904c18932206986acf0c2ee01"
+
+          mkdir -p legacy-recovery/extracted
+          curl -fL --retry 5 --retry-delay 2             -o legacy-recovery/PRIMEVPN-linux-amd64.tar.gz             "$LEGACY_URL"
+
+          printf '%s  %s\n'             "$LEGACY_SHA"             "PRIMEVPN-linux-amd64.tar.gz"             > legacy-recovery/PRIMEVPN-linux-amd64.tar.gz.sha256
+
+          (
+            cd legacy-recovery
+            sha256sum -c PRIMEVPN-linux-amd64.tar.gz.sha256
+          )
+
+          tar -xzf legacy-recovery/PRIMEVPN-linux-amd64.tar.gz             -C legacy-recovery/extracted
+
+          echo "Legacy archive top-level entries:"
+          find legacy-recovery/extracted -maxdepth 2 -mindepth 1 -printf '%P\n' | sort | head -200
+
+      - name: Recover audited runtime inputs
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+
+          ROOT="legacy-recovery/extracted"
+          RUNTIME_OUT="legacy-recovery/runtime"
+          mkdir -p "$RUNTIME_OUT/bin"
+
+          find_one() {
+            local name="$1"
+            local found
+            found="$(find "$ROOT" -type f -name "$name" -print -quit)"
+            test -n "$found" || {
+              echo "ERROR: missing legacy runtime asset: $name" >&2
+              exit 1
+            }
+            printf '%s\n' "$found"
+          }
+
+          for name in             xray-linux-amd64             mtg-linux-amd64             geoip.dat             geosite.dat             geoip_IR.dat             geosite_IR.dat             geoip_RU.dat             geosite_RU.dat
+          do
+            src="$(find_one "$name")"
+            cp -a "$src" "$RUNTIME_OUT/bin/$name"
+          done
+
+          chmod 0755             "$RUNTIME_OUT/bin/xray-linux-amd64"             "$RUNTIME_OUT/bin/mtg-linux-amd64"
+
+          file "$RUNTIME_OUT/bin/xray-linux-amd64"
+          file "$RUNTIME_OUT/bin/xray-linux-amd64" | grep -q 'statically linked'
+
+          (
+            cd "$RUNTIME_OUT"
+            find bin -type f -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS
+          )
+
+          {
+            echo "SOURCE_REPOSITORY=PrimeLinkPanel/PRIMEVPN"
+            echo "SOURCE_RELEASE=v1.0.0"
+            echo "SOURCE_ASSET=PRIMEVPN-linux-amd64.tar.gz"
+            echo "SOURCE_ASSET_SHA256=e3d77d7b2e586b1ce6d2fc94078b31e5610ae88904c18932206986acf0c2ee01"
+            echo "RECOVERED_AT_UTC=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            echo "CURRENT_REPOSITORY=$GITHUB_REPOSITORY"
+            echo "CURRENT_SOURCE_HEAD=$GITHUB_SHA"
+            echo "CUSTOM_XRAY_SHA256=$(sha256sum "$RUNTIME_OUT/bin/xray-linux-amd64" | awk '{print $1}')"
+          } > "$RUNTIME_OUT/RECOVERY_MANIFEST"
+
+          tar             --sort=name             --owner=0             --group=0             --numeric-owner             -C "$RUNTIME_OUT"             -czf legacy-recovery/legacy-runtime-amd64.tar.gz             bin SHA256SUMS RECOVERY_MANIFEST
+
+          sha256sum legacy-recovery/legacy-runtime-amd64.tar.gz             > legacy-recovery/legacy-runtime-amd64.tar.gz.sha256
+
+          echo "Recovered runtime checksums:"
+          cat "$RUNTIME_OUT/SHA256SUMS"
+          echo
+          cat "$RUNTIME_OUT/RECOVERY_MANIFEST"
+
+      - name: Preserve recovery files as workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: primevpn-legacy-v1.0.0-recovery
+          retention-days: 90
+          if-no-files-found: error
+          path: |
+            legacy-recovery/PRIMEVPN-linux-amd64.tar.gz
+            legacy-recovery/PRIMEVPN-linux-amd64.tar.gz.sha256
+            legacy-recovery/legacy-runtime-amd64.tar.gz
+            legacy-recovery/legacy-runtime-amd64.tar.gz.sha256
+            legacy-recovery/runtime/RECOVERY_MANIFEST
+            legacy-recovery/runtime/SHA256SUMS
+
+      - name: Mirror into a draft GitHub release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -Eeuo pipefail
+
+          TAG="legacy-v1.0.0"
+          NOTES="Backup of the original PrimeLinkPanel/PRIMEVPN v1.0.0 release before repository retirement. The original release asset SHA256 is pinned and verified. This draft is archival/recovery material, not the current PRIMEVPN stable release."
+
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$TAG"               legacy-recovery/PRIMEVPN-linux-amd64.tar.gz               legacy-recovery/PRIMEVPN-linux-amd64.tar.gz.sha256               legacy-recovery/legacy-runtime-amd64.tar.gz               legacy-recovery/legacy-runtime-amd64.tar.gz.sha256               legacy-recovery/runtime/RECOVERY_MANIFEST               legacy-recovery/runtime/SHA256SUMS               --clobber               --repo "$GITHUB_REPOSITORY"
+          else
+            gh release create "$TAG"               legacy-recovery/PRIMEVPN-linux-amd64.tar.gz               legacy-recovery/PRIMEVPN-linux-amd64.tar.gz.sha256               legacy-recovery/legacy-runtime-amd64.tar.gz               legacy-recovery/legacy-runtime-amd64.tar.gz.sha256               legacy-recovery/runtime/RECOVERY_MANIFEST               legacy-recovery/runtime/SHA256SUMS               --draft               --target "$GITHUB_SHA"               --title "Legacy PrimeLinkPanel v1.0.0 backup"               --notes "$NOTES"               --repo "$GITHUB_REPOSITORY"
+          fi
+
+          echo "LEGACY_BACKUP=pass"
