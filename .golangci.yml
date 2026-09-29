@@ -32,7 +32,18 @@ linters:
       # golang.org/x/tools/go/packages is a generator change, out of scope here.
       - linters:
           - staticcheck
-        text: "SA1019: parser.ParseDir"
+        text: "SA1019: go/parser.ParseDir"
+      # Optional quick-fix checks are readability suggestions, not
+      # correctness gates. Keep correctness-oriented staticcheck rules enabled.
+      - linters:
+          - staticcheck
+        text: "QF1001:"
+      - linters:
+          - staticcheck
+        text: "QF1003:"
+      - linters:
+          - staticcheck
+        text: "QF1008:"
       # ST1005 (capitalized error strings) conflicts with intentional
       # user-facing error copy that tests assert verbatim.
       - linters:

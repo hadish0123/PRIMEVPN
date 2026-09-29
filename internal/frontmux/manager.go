@@ -105,8 +105,9 @@ func (m *Manager) Start(plan Plan) error {
 		globalSemaphore: make(chan struct{}, globalLimit),
 	}
 
+	var listenConfig net.ListenConfig
 	for _, group := range canonical.Groups {
-		listener, err := net.Listen("tcp", listenerKey(group.Listen, group.Port))
+		listener, err := listenConfig.Listen(ctx, "tcp", listenerKey(group.Listen, group.Port))
 		if err != nil {
 			cancel()
 			for _, opened := range running.listeners {

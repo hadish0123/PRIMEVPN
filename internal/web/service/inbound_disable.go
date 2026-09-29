@@ -232,19 +232,23 @@ func (s *InboundService) disableClientsByOwnerAdminID(ownerAdminID int, disabled
 	}
 
 	if p != nil && len(localTargets) > 0 {
-		s.xrayApi.Init(p.GetAPIPort())
-		for _, t := range localTargets {
-			err1 := s.xrayApi.RemoveUser(t.Tag, s.runtimeEmailForInboundTag(t.Tag, t.Email))
-			if err1 == nil {
-				logger.Debug("Client disabled by RBAC admin feature:", t.Email)
-			} else if strings.Contains(err1.Error(), fmt.Sprintf("User %s not found.", t.Email)) {
-				logger.Debug("User is already disabled. Nothing to do more...")
-			} else {
-				logger.Debug("Error in disabling client by RBAC admin feature:", err1)
-				needRestart = true
+		if err := s.xrayApi.Init(p.GetAPIPort()); err != nil {
+			logger.Debug("Error initializing Xray API for client disable:", err)
+			needRestart = true
+		} else {
+			for _, t := range localTargets {
+				err1 := s.xrayApi.RemoveUser(t.Tag, s.runtimeEmailForInboundTag(t.Tag, t.Email))
+				if err1 == nil {
+					logger.Debug("Client disabled by RBAC admin feature:", t.Email)
+				} else if strings.Contains(err1.Error(), fmt.Sprintf("User %s not found.", t.Email)) {
+					logger.Debug("User is already disabled. Nothing to do more...")
+				} else {
+					logger.Debug("Error in disabling client by RBAC admin feature:", err1)
+					needRestart = true
+				}
 			}
+			s.xrayApi.Close()
 		}
-		s.xrayApi.Close()
 	}
 
 	for inboundID, group := range localByInbound {

@@ -711,13 +711,9 @@ func (s *ServerService) sampleCPUUtilization() (float64, error) {
 	return s.emaCPU, nil
 }
 
-const (
-	maxXrayArchiveBytes = 200 << 20
-	maxXrayBinaryBytes  = 200 << 20
-	// maxXrayDigestBytes caps the .dgst checksum sidecar read; it is a few
-	// hundred bytes in practice.
-	maxXrayDigestBytes = 64 << 10
-)
+// maxXrayDigestBytes caps the .dgst checksum sidecar read; it is a few
+// hundred bytes in practice.
+const maxXrayDigestBytes = 64 << 10
 
 func (s *ServerService) GetXrayVersions() ([]string, error) {
 	const (
@@ -796,100 +792,6 @@ func (s *ServerService) RestartXrayService() error {
 		return err
 	}
 	return nil
-}
-
-func (s *ServerService) downloadXRay(version string) (string, error) {
-	osName := runtime.GOOS
-	arch := runtime.GOARCH
-
-	switch osName {
-	case "darwin":
-		osName = "macos"
-	case "windows":
-		osName = "windows"
-	}
-
-	switch arch {
-	case "amd64":
-		arch = "64"
-	case "arm64":
-		arch = "arm64-v8a"
-	case "armv7":
-		arch = "arm32-v7a"
-	case "armv6":
-		arch = "arm32-v6"
-	case "armv5":
-		arch = "arm32-v5"
-	case "386":
-		arch = "32"
-	case "s390x":
-		arch = "s390x"
-	}
-
-	fileName := fmt.Sprintf("Xray-%s-%s.zip", osName, arch)
-	url := fmt.Sprintf("https://github.com/XTLS/Xray-core/releases/download/%s/%s", version, fileName)
-	client := s.settingService.NewProxiedHTTPClient(60 * time.Second)
-	req, reqErr := http.NewRequestWithContext(context.Background(), http.MethodGet, url, nil)
-	if reqErr != nil {
-		return "", reqErr
-	}
-	resp, err := client.Do(req)
-	if err != nil {
-		return "", err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("download xray: unexpected HTTP %d", resp.StatusCode)
-	}
-	if resp.ContentLength > maxXrayArchiveBytes {
-		return "", fmt.Errorf("download xray: archive exceeds %d bytes", maxXrayArchiveBytes)
-	}
-
-	file, err := os.CreateTemp("", "xray-*.zip")
-	if err != nil {
-		return "", err
-	}
-	path := file.Name()
-	ok := false
-	defer func() {
-		_ = file.Close()
-		if !ok {
-			_ = os.Remove(path)
-		}
-	}()
-
-	n, err := io.Copy(file, io.LimitReader(resp.Body, maxXrayArchiveBytes+1))
-	if err != nil {
-		return "", err
-	}
-	if n > maxXrayArchiveBytes {
-		return "", fmt.Errorf("download xray: archive exceeds %d bytes", maxXrayArchiveBytes)
-	}
-
-	// Verify the archive against the SHA2-256 published in the release's .dgst
-	// sidecar before installing it. TLS protects the transport, not the artifact;
-	// a corrupted or tampered asset must not be installed and run as xray.
-	want, err := s.fetchXrayDigestSHA256(client, url+".dgst")
-	if err != nil {
-		return "", err
-	}
-	if _, err := file.Seek(0, io.SeekStart); err != nil {
-		return "", err
-	}
-	hasher := sha256.New()
-	if _, err := io.Copy(hasher, file); err != nil {
-		return "", err
-	}
-	if got := hex.EncodeToString(hasher.Sum(nil)); !strings.EqualFold(got, want) {
-		// User-facing warning: the archive's SHA-256 does not match the official
-		// release checksum, so the download is corrupted or has been tampered
-		// with. Abort the install so a bad binary is never run, and tell the user
-		// to retry/re-download rather than proceed with a mismatched image.
-		return "", fmt.Errorf("Xray update aborted: the downloaded archive does not match the official SHA-256 checksum, so the image is corrupted or differs from the official release. Please exit and re-download the official image, then try again (expected %s, got %s)", want, got)
-	}
-
-	ok = true
-	return path, nil
 }
 
 // fetchXrayDigestSHA256 downloads the .dgst sidecar XTLS publishes next to each

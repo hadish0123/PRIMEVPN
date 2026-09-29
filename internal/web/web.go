@@ -307,7 +307,7 @@ func (s *Server) startTask(restartXray bool) {
 	// immediately and retry periodically if socket setup initially fails.
 	clientActivityCollectorJob := job.NewClientActivityCollectorJob()
 	clientActivityCollectorJob.Run()
-	s.cron.AddJob("@every 10s", clientActivityCollectorJob)
+	_, _ = s.cron.AddJob("@every 10s", clientActivityCollectorJob)
 
 	// Generate Core-level client limits before Xray starts, then keep the
 	// files synchronized while the panel is running.
