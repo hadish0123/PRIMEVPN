@@ -46,7 +46,7 @@ jobs:
           ref: ${{ steps.source.outputs.sha }}
           fetch-depth: 0
 
-      - name: Validate draft release
+      - name: Validate release asset
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
@@ -58,12 +58,6 @@ jobs:
           SOURCE_HEAD="$(git rev-parse HEAD)"
 
           test "$TAG" = "v1.5.0"
-
-          IS_DRAFT="$(gh release view "$TAG" \
-            --repo "$GITHUB_REPOSITORY" \
-            --json isDraft \
-            --jq .isDraft)"
-          test "$IS_DRAFT" = "true"
 
           mkdir -p release-check
           gh release download "$TAG" \
@@ -87,9 +81,18 @@ jobs:
           VERSION="$(tr -d '[:space:]' < internal/config/version)"
           TAG="v$VERSION"
 
-          gh release edit "$TAG" \
+          IS_DRAFT="$(gh release view "$TAG" \
             --repo "$GITHUB_REPOSITORY" \
-            --draft=false
+            --json isDraft \
+            --jq .isDraft)"
+
+          if [[ "$IS_DRAFT" == "true" ]]; then
+            gh release edit "$TAG" \
+              --repo "$GITHUB_REPOSITORY" \
+              --draft=false
+          else
+            echo "$TAG is already public; keeping the published release unchanged."
+          fi
 
           test "$(gh release view "$TAG" \
             --repo "$GITHUB_REPOSITORY" \
@@ -97,3 +100,10 @@ jobs:
             --jq .isDraft)" = "false"
 
           echo "STABLE_RELEASE_PUBLISHED=$TAG"
+
+      - name: Fresh Ubuntu install smoke test
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          VERSION="$(tr -d '[:space:]' < internal/config/version)"
+          bash deploy/test/smoke-noninteractive.sh "v$VERSION"
