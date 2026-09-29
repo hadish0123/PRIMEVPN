@@ -157,7 +157,6 @@ func TestProcessObserved_CollectsIpsWithoutLimit(t *testing.T) {
 	if len(ips) != 1 || ips[0].IP != "203.0.113.10" {
 		t.Fatalf("expected the observed IP to be collected without a limit, got %v", ips)
 	}
-
 }
 
 // #4963: an observed IP for a renamed/deleted client (its email no longer maps

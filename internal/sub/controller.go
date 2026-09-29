@@ -5,7 +5,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"github.com/mhsanaei/PRIMEVPN/v3/internal/database"
 	"html/template"
 	"math"
 	"net/http"
@@ -16,6 +15,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/mhsanaei/PRIMEVPN/v3/internal/database"
 
 	"github.com/gin-gonic/gin"
 
