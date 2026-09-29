@@ -8,6 +8,8 @@ on:
       - "packaging/release/build-linux-amd64.sh"
       - "packaging/release/prepare-runtime-amd64.sh"
       - "packaging/release/verify-release-archive.sh"
+      - "frontend/package.json"
+      - "frontend/package-lock.json"
   workflow_dispatch:
 
 permissions:
