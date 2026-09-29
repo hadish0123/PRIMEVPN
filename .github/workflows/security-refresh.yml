@@ -67,4 +67,5 @@ jobs:
             exit 0
           fi
           git commit -m "security: update Go and gRPC"
+          git pull --rebase origin main
           git push origin HEAD:main
