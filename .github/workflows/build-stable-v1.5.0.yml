@@ -10,6 +10,7 @@ on:
       - "packaging/release/verify-release-archive.sh"
       - "frontend/package.json"
       - "frontend/package-lock.json"
+      - "frontend/src/**"
   workflow_dispatch:
 
 permissions:
@@ -39,6 +40,15 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
           cache-dependency-path: frontend/package-lock.json
+
+      - name: Reject corrupted Radix package namespace
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          if grep -R --line-number --fixed-strings '@radiprimevpn/' frontend/package.json frontend/package-lock.json frontend/src; then
+            echo "ERROR: corrupted @radiprimevpn namespace detected; use @radix-ui instead." >&2
+            exit 1
+          fi
 
       - name: Download recovered custom runtime
         shell: bash
