@@ -56,10 +56,10 @@ jobs:
       - name: Build deterministic release archive
         shell: bash
         env:
-          PRIMEVPN_CUSTOM_XRAY: ${{ github.workspace }}/runtime-release-inputs/bin/xray-linux-amd64
+          PRIMEVPN_CUSTOM_XRAY: ${{ runner.temp }}/primevpn-runtime-release-inputs/bin/xray-linux-amd64
           PRIMEVPN_CUSTOM_XRAY_SHA256: 8255dd939c34cf966cc91517b6324dd3c8d0bcf49ffac8beca049a38c46845ed
-          PRIMEVPN_RUNTIME_BIN_DIR: ${{ github.workspace }}/runtime-release-inputs/bin
-          PRIMEVPN_RUNTIME_MANIFEST: ${{ github.workspace }}/runtime-release-inputs/RUNTIME_SOURCES
+          PRIMEVPN_RUNTIME_BIN_DIR: ${{ runner.temp }}/primevpn-runtime-release-inputs/bin
+          PRIMEVPN_RUNTIME_MANIFEST: ${{ runner.temp }}/primevpn-runtime-release-inputs/RUNTIME_SOURCES
         run: |
           set -Eeuo pipefail
           bash packaging/release/build-linux-amd64.sh
@@ -81,8 +81,8 @@ jobs:
           path: |
             release-out/primevpn-linux-amd64.tar.gz
             release-out/primevpn-linux-amd64.tar.gz.sha256
-            runtime-release-inputs/RUNTIME_SOURCES
-            runtime-release-inputs/RUNTIME_SHA256SUMS
+            ${{ runner.temp }}/primevpn-runtime-release-inputs/RUNTIME_SOURCES
+            ${{ runner.temp }}/primevpn-runtime-release-inputs/RUNTIME_SHA256SUMS
 
       - name: Create or refresh draft release
         shell: bash
