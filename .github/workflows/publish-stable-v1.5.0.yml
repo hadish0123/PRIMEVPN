@@ -1,6 +1,11 @@
 name: Publish Stable PRIMEVPN v1.5.0
 
 on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/publish-stable-v1.5.0.yml"
   workflow_run:
     workflows:
       - "Build Stable PRIMEVPN v1.5.0 Draft"
@@ -14,22 +19,26 @@ permissions:
 jobs:
   publish:
     if: >-
+      github.event_name == 'push' ||
       github.event_name == 'workflow_dispatch' ||
       github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
     steps:
-      - name: Resolve source commit
+      - name: Resolve release source
         id: source
         shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -Eeuo pipefail
-          if [[ "$GITHUB_EVENT_NAME" == "workflow_run" ]]; then
-            echo "sha=${{ github.event.workflow_run.head_sha }}" >> "$GITHUB_OUTPUT"
-          else
-            echo "sha=${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
-          fi
+          TARGET="$(gh release view v1.5.0 \
+            --repo "$GITHUB_REPOSITORY" \
+            --json targetCommitish \
+            --jq .targetCommitish)"
+          test -n "$TARGET"
+          echo "sha=$TARGET" >> "$GITHUB_OUTPUT"
 
       - name: Checkout release source
         uses: actions/checkout@v4
