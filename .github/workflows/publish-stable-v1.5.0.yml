@@ -1,0 +1,90 @@
+name: Publish Stable PRIMEVPN v1.5.0
+
+on:
+  workflow_run:
+    workflows:
+      - "Build Stable PRIMEVPN v1.5.0 Draft"
+    types:
+      - completed
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Resolve source commit
+        id: source
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          if [[ "$GITHUB_EVENT_NAME" == "workflow_run" ]]; then
+            echo "sha=${{ github.event.workflow_run.head_sha }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "sha=${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout release source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.source.outputs.sha }}
+          fetch-depth: 0
+
+      - name: Validate draft release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -Eeuo pipefail
+
+          VERSION="$(tr -d '[:space:]' < internal/config/version)"
+          TAG="v$VERSION"
+          SOURCE_HEAD="$(git rev-parse HEAD)"
+
+          test "$TAG" = "v1.5.0"
+
+          IS_DRAFT="$(gh release view "$TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --json isDraft \
+            --jq .isDraft)"
+          test "$IS_DRAFT" = "true"
+
+          mkdir -p release-check
+          gh release download "$TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --pattern "primevpn-linux-amd64.tar.gz" \
+            --pattern "primevpn-linux-amd64.tar.gz.sha256" \
+            --dir release-check
+
+          bash packaging/release/verify-release-archive.sh \
+            release-check/primevpn-linux-amd64.tar.gz \
+            release-check/primevpn-linux-amd64.tar.gz.sha256 \
+            "$VERSION" \
+            "$SOURCE_HEAD"
+
+      - name: Publish verified stable release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -Eeuo pipefail
+          VERSION="$(tr -d '[:space:]' < internal/config/version)"
+          TAG="v$VERSION"
+
+          gh release edit "$TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --draft=false
+
+          test "$(gh release view "$TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --json isDraft \
+            --jq .isDraft)" = "false"
+
+          echo "STABLE_RELEASE_PUBLISHED=$TAG"
