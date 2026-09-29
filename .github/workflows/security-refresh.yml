@@ -1,0 +1,70 @@
+name: Security Dependency Refresh
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/security-refresh.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version: "1.26.8"
+          cache: true
+
+      - name: Update Go toolchain and gRPC
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          go mod edit -go=1.26.8
+          go get google.golang.org/grpc@v1.83.1
+          go mod tidy
+          grep -q '^go 1.26.8$' go.mod
+          grep -q '^\s*google.golang.org/grpc v1.83.1$' go.mod
+
+      - name: Stub embedded frontend
+        run: mkdir -p internal/web/dist && touch internal/web/dist/.gitkeep
+
+      - name: Test Go packages
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          go list ./... | grep -v '/frontend/node_modules/' > /tmp/go-packages.txt
+          go test -shuffle=on -count=1 $(cat /tmp/go-packages.txt)
+
+      - name: Run govulncheck
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          go install golang.org/x/vuln/cmd/govulncheck@latest
+          govulncheck ./...
+
+      - name: Commit verified dependency patch
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -Eeuo pipefail
+          git status --short
+          git diff --check
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add go.mod go.sum
+          if git diff --cached --quiet; then
+            echo "No dependency changes to commit."
+            exit 0
+          fi
+          git commit -m "security: update Go and gRPC"
+          git push origin HEAD:main
