@@ -30,6 +30,11 @@ if docker container inspect "$CONTAINER_NAME" >/dev/null 2>&1; then
   RECOVERY_MOUNTS="$(docker inspect -f '{{range .Mounts}}{{.Source}}|{{.Destination}}{{"\n"}}{{end}}' "$CONTAINER_NAME")"
   printf '%s\n' "$RECOVERY_MOUNTS" | grep -Fqx "$BASE_DIR/entrypoint.sh|/usr/local/sbin/primevpn-entrypoint" || fail "The existing container is not mounted to this install's entrypoint. Nothing was changed."
   printf '%s\n' "$RECOVERY_MOUNTS" | grep -Fqx "$BASE_DIR/state|/etc/primevpn" || fail "The existing container does not use this install's state directory. Nothing was changed."
+  printf '%s\n' "$RECOVERY_MOUNTS" | grep -Fqx "$BASE_DIR/dist/primevpn|/opt/primevpn-dist" || fail "The existing container does not use this install's release files. Nothing was changed."
+  printf '%s\n' "$RECOVERY_MOUNTS" | grep -Fqx "$BASE_DIR/app|/usr/local/primevpn" || fail "The existing container does not use this install's app directory. Nothing was changed."
+  printf '%s\n' "$RECOVERY_MOUNTS" | grep -Fqx "$BASE_DIR/logs|/var/log/primevpn" || fail "The existing container does not use this install's log directory. Nothing was changed."
+  printf '%s\n' "$RECOVERY_MOUNTS" | grep -Fqx "$BASE_DIR/acme|/root/.acme.sh" || fail "The existing container does not use this install's ACME directory. Nothing was changed."
+  printf '%s\n' "$RECOVERY_MOUNTS" | grep -Fqx "$BASE_DIR/cert|/root/cert" || fail "The existing container does not use this install's certificate directory. Nothing was changed."
   printf '%s\n' "$RECOVERY_MOUNTS" | grep -Fqx "$BASE_DIR/bootstrap.env|/run/primevpn-bootstrap.env" || fail "The existing container does not use this install's bootstrap configuration. Nothing was changed."
 
   chmod 600 "$BASE_DIR/bootstrap.env"
