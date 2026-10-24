@@ -4,12 +4,13 @@ The currently published stable release contains **AMD64-only** panel, custom Xra
 
 ## Install
 
-On an ARM64 Ubuntu/Debian server with Docker installed and working:
+On an ARM64 Ubuntu/Debian server with Docker installed and working, use the **standard installer command**. It now detects ARM64 and automatically downloads and runs this compatibility installer. On x86-64, the existing native install path is unchanged.
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/hadish0123/PRIMEVPN/main/install-arm64-docker.sh -o /tmp/install-arm64-docker.sh
-sudo bash /tmp/install-arm64-docker.sh
+bash <(curl -Ls https://raw.githubusercontent.com/hadish0123/PRIMEVPN/main/install.sh)
 ```
+
+The ARM64 compatibility path installs the latest stable release only; version arguments are not supported yet. To configure the panel port or credentials non-interactively, see the environment variables supported by `install-arm64-docker.sh`.
 
 The installer:
 - refuses to overwrite a pre-existing native PRIMEVPN install, container, or non-empty data directory;
