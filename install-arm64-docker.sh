@@ -21,21 +21,41 @@ for command in docker curl tar sha256sum openssl awk sed grep; do need "$command
 docker info >/dev/null 2>&1 || fail "Docker is not running or this account cannot access it."
 
 # Recover our own interrupted installation without deleting persistent application/database files.
-if docker container inspect "$CONTAINER_NAME" >/dev/null 2>&1; then
+CONTAINER_EXISTS=0
+if docker container inspect "$CONTAINER_NAME" >/dev/null 2>&1; then CONTAINER_EXISTS=1; fi
+
+# If a prior run stopped after creating the host-side files but before Docker
+# could create/retain the container, resume from the saved config and release.
+RECOVERABLE_TREE=0
+if [[ -d "$BASE_DIR" && ! -L "$BASE_DIR" \
+  && -x "$BASE_DIR/primevpn-arm64" \
+  && -f "$BASE_DIR/bootstrap.env" && ! -L "$BASE_DIR/bootstrap.env" \
+  && -s "$BASE_DIR/entrypoint.sh" \
+  && -s "$BASE_DIR/dist/primevpn/RELEASE_MANIFEST" \
+  && -s "$BASE_DIR/dist/primevpn/SHA256SUMS" \
+  && -s "$BASE_DIR/dist/primevpn/primevpn" \
+  && -d "$BASE_DIR/state" && -d "$BASE_DIR/app" \
+  && -d "$BASE_DIR/logs" && -d "$BASE_DIR/acme" && -d "$BASE_DIR/cert" ]]; then
+  RECOVERABLE_TREE=1
+fi
+
+if [[ "$CONTAINER_EXISTS" -eq 1 || "$RECOVERABLE_TREE" -eq 1 ]]; then
   info "An earlier PRIMEVPN ARM64 installation was interrupted; checking its files and recovering in place."
   [[ -d "$BASE_DIR" && ! -L "$BASE_DIR" ]] || fail "Existing container found, but $BASE_DIR is missing or is a symlink. Nothing was changed."
   [[ -s "$BASE_DIR/bootstrap.env" && -s "$BASE_DIR/entrypoint.sh" && -s "$BASE_DIR/dist/primevpn/RELEASE_MANIFEST" ]] || fail "Existing container found, but the expected installer files are incomplete. Container and data were preserved."
   [[ -d "$BASE_DIR/state" && -d "$BASE_DIR/app" && -d "$BASE_DIR/logs" && -d "$BASE_DIR/acme" && -d "$BASE_DIR/cert" ]] || fail "Existing container found, but one or more persistent directories are missing. Nothing was changed."
-  [[ "$(docker inspect -f '{{.Config.Image}}' "$CONTAINER_NAME")" == "$IMAGE" ]] || fail "Container name is occupied by a different image. Nothing was changed."
-  RECOVERY_MOUNTS="$(docker inspect -f '{{range .Mounts}}{{.Source}}|{{.Destination}}{{"\n"}}{{end}}' "$CONTAINER_NAME")"
-  printf '%s\n' "$RECOVERY_MOUNTS" | grep -Fqx "$BASE_DIR/entrypoint.sh|/usr/local/sbin/primevpn-entrypoint" || fail "The existing container is not mounted to this install's entrypoint. Nothing was changed."
-  printf '%s\n' "$RECOVERY_MOUNTS" | grep -Fqx "$BASE_DIR/state|/etc/primevpn" || fail "The existing container does not use this install's state directory. Nothing was changed."
-  printf '%s\n' "$RECOVERY_MOUNTS" | grep -Fqx "$BASE_DIR/dist/primevpn|/opt/primevpn-dist" || fail "The existing container does not use this install's release files. Nothing was changed."
-  printf '%s\n' "$RECOVERY_MOUNTS" | grep -Fqx "$BASE_DIR/app|/usr/local/primevpn" || fail "The existing container does not use this install's app directory. Nothing was changed."
-  printf '%s\n' "$RECOVERY_MOUNTS" | grep -Fqx "$BASE_DIR/logs|/var/log/primevpn" || fail "The existing container does not use this install's log directory. Nothing was changed."
-  printf '%s\n' "$RECOVERY_MOUNTS" | grep -Fqx "$BASE_DIR/acme|/root/.acme.sh" || fail "The existing container does not use this install's ACME directory. Nothing was changed."
-  printf '%s\n' "$RECOVERY_MOUNTS" | grep -Fqx "$BASE_DIR/cert|/root/cert" || fail "The existing container does not use this install's certificate directory. Nothing was changed."
-  printf '%s\n' "$RECOVERY_MOUNTS" | grep -Fqx "$BASE_DIR/bootstrap.env|/run/primevpn-bootstrap.env" || fail "The existing container does not use this install's bootstrap configuration. Nothing was changed."
+  if [[ "$CONTAINER_EXISTS" -eq 1 ]]; then
+    [[ "$(docker inspect -f '{{.Config.Image}}' "$CONTAINER_NAME")" == "$IMAGE" ]] || fail "Container name is occupied by a different image. Nothing was changed."
+    RECOVERY_MOUNTS="$(docker inspect -f '{{range .Mounts}}{{.Source}}|{{.Destination}}{{"\n"}}{{end}}' "$CONTAINER_NAME")"
+    printf '%s\n' "$RECOVERY_MOUNTS" | grep -Fqx "$BASE_DIR/entrypoint.sh|/usr/local/sbin/primevpn-entrypoint" || fail "The existing container is not mounted to this install's entrypoint. Nothing was changed."
+    printf '%s\n' "$RECOVERY_MOUNTS" | grep -Fqx "$BASE_DIR/state|/etc/primevpn" || fail "The existing container does not use this install's state directory. Nothing was changed."
+    printf '%s\n' "$RECOVERY_MOUNTS" | grep -Fqx "$BASE_DIR/dist/primevpn|/opt/primevpn-dist" || fail "The existing container does not use this install's release files. Nothing was changed."
+    printf '%s\n' "$RECOVERY_MOUNTS" | grep -Fqx "$BASE_DIR/app|/usr/local/primevpn" || fail "The existing container does not use this install's app directory. Nothing was changed."
+    printf '%s\n' "$RECOVERY_MOUNTS" | grep -Fqx "$BASE_DIR/logs|/var/log/primevpn" || fail "The existing container does not use this install's log directory. Nothing was changed."
+    printf '%s\n' "$RECOVERY_MOUNTS" | grep -Fqx "$BASE_DIR/acme|/root/.acme.sh" || fail "The existing container does not use this install's ACME directory. Nothing was changed."
+    printf '%s\n' "$RECOVERY_MOUNTS" | grep -Fqx "$BASE_DIR/cert|/root/cert" || fail "The existing container does not use this install's certificate directory. Nothing was changed."
+    printf '%s\n' "$RECOVERY_MOUNTS" | grep -Fqx "$BASE_DIR/bootstrap.env|/run/primevpn-bootstrap.env" || fail "The existing container does not use this install's bootstrap configuration. Nothing was changed."
+  fi
 
   chmod 600 "$BASE_DIR/bootstrap.env"
   # This is a root-owned file generated by this installer; preserve its saved credentials and selected port.
@@ -57,8 +77,12 @@ if docker container inspect "$CONTAINER_NAME" >/dev/null 2>&1; then
   grep -Fq 'grep -Fqx "webBasePath: /$PRIMEVPN_WEB_BASE_PATH/"' "$BASE_DIR/entrypoint.sh" || fail "Could not validate the existing entrypoint's base-path check. Existing data was preserved."
   bash -n "$BASE_DIR/entrypoint.sh"
 
-  info "Recreating only the failed container; bind-mounted app, configuration, and database files will be kept."
-  docker rm -f "$CONTAINER_NAME" >/dev/null
+  if [[ "$CONTAINER_EXISTS" -eq 1 ]]; then
+    info "Recreating only the failed container; bind-mounted app, configuration, and database files will be kept."
+    docker rm -f "$CONTAINER_NAME" >/dev/null
+  else
+    info "No container exists, but a complete saved installation was found; resuming without regenerating credentials."
+  fi
   docker pull --platform linux/amd64 "$IMAGE" >/dev/null
   docker run -d \
     --name "$CONTAINER_NAME" \
