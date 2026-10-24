@@ -140,6 +140,11 @@ if [[ ! -e "$STATE_DIR/.arm64-bootstrap-done" ]]; then
     -username "$PRIMEVPN_ADMIN_USER" \
     -password "$PRIMEVPN_ADMIN_PASSWORD" \
     -webBasePath "$PRIMEVPN_WEB_BASE_PATH"
+  settings_output="$("$APP_DIR/primevpn" setting -show true)"
+  printf '%s\n' "$settings_output"
+  grep -Fqx "port: $PRIMEVPN_PANEL_PORT" <<< "$settings_output" || { echo 'Panel port verification failed; bootstrap marker was not written.' >&2; exit 1; }
+  grep -Fqx "webBasePath: $PRIMEVPN_WEB_BASE_PATH" <<< "$settings_output" || { echo 'Web base path verification failed; bootstrap marker was not written.' >&2; exit 1; }
+  grep -Fqx 'hasDefaultCredential: false' <<< "$settings_output" || { echo 'Admin credential verification failed; bootstrap marker was not written.' >&2; exit 1; }
   printf 'Initialized by PRIMEVPN ARM64 container installer.\n' > "$STATE_DIR/.arm64-bootstrap-done"
   chmod 600 "$STATE_DIR/.arm64-bootstrap-done"
 fi
@@ -171,8 +176,16 @@ case "$command_name" in
     echo "The upstream updater/installer assumes a native systemd service. This command is blocked for the containerized ARM64 install to avoid replacing a running service incorrectly." >&2
     exit 2
     ;;
-  menu|"") exec docker exec -it "$CONTAINER" /usr/local/primevpn/primevpn.sh "$@" ;;
-  *)       exec docker exec -it "$CONTAINER" /usr/local/primevpn/primevpn.sh "$command_name" "$@" ;;
+  menu|"")
+    echo "Use the PRIMEVPN web panel for configuration. The upstream interactive menu exposes an updater that assumes a native systemd install, so it is intentionally not launched here."
+    echo "Safe commands: status, start, stop, restart, logs, version, shell"
+    echo "To access the shell: primevpn-arm64 shell"
+    ;;
+  *)
+    echo "Unsupported command: $command_name"
+    echo "Safe commands: status, start, stop, restart, logs, version, shell"
+    exit 2
+    ;;
 esac
 HOST_WRAPPER
 chmod 755 "$BASE_DIR/primevpn-arm64"
