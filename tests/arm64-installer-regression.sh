@@ -21,6 +21,13 @@ assert_contains 'docker rm -f "$CONTAINER_NAME"'
 assert_contains '"$BASE_DIR/state:/etc/primevpn"'
 assert_contains '"$BASE_DIR/bootstrap.env:/run/primevpn-bootstrap.env:ro"'
 
+# Verify the exact sed repair used on a server's previously generated entrypoint.
+tmp_entrypoint="$(mktemp)"
+trap 'rm -f "$tmp_entrypoint"' EXIT
+printf '%s\\n' 'grep -Fqx "webBasePath: $PRIMEVPN_WEB_BASE_PATH"' > "$tmp_entrypoint"
+sed -i 's|grep -Fqx "webBasePath: \\$PRIMEVPN_WEB_BASE_PATH"|grep -Fqx "webBasePath: /\\$PRIMEVPN_WEB_BASE_PATH/"|' "$tmp_entrypoint"
+grep -Fqx 'grep -Fqx "webBasePath: /$PRIMEVPN_WEB_BASE_PATH/"' "$tmp_entrypoint"
+
 # A crash-retry must validate every old container mount before it removes that container.
 rm_line="$(grep -nF 'docker rm -f "$CONTAINER_NAME"' "$installer" | head -n 1 | cut -d: -f1)"
 for needle in \
