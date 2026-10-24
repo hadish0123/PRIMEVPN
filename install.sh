@@ -42,6 +42,34 @@ arch() {
 
 echo "Arch: $(arch)"
 
+# ARM64 compatibility path: stable releases currently publish AMD64 binaries only.
+# Keep the native installer unchanged for x86-64; on ARM64, dispatch to the
+# checksum-verifying Docker/QEMU compatibility installer maintained in this repo.
+if [[ "$(arch)" == "arm64" ]]; then
+    echo -e "${yellow}ARM64 detected: using the Docker AMD64-emulation installer.${plain}"
+    echo -e "${yellow}This is emulation, not native ARM64 support.${plain}"
+    if [[ $# -gt 0 ]]; then
+        echo -e "${red}The ARM64 compatibility path currently installs the latest stable release only; version/menu arguments are not supported.${plain}" >&2
+        exit 2
+    fi
+    helper_dir="$(mktemp -d /tmp/primevpn-arm64-installer.XXXXXX)" || exit 1
+    helper_script="${helper_dir}/install-arm64-docker.sh"
+    if ! curl -fsSL --retry 3 --connect-timeout 15 --max-time 60 "https://raw.githubusercontent.com/hadish0123/PRIMEVPN/main/install-arm64-docker.sh" -o "$helper_script"; then
+        echo -e "${red}Failed to download the ARM64 compatibility installer from GitHub.${plain}" >&2
+        rm -rf "$helper_dir"
+        exit 1
+    fi
+    if ! bash -n "$helper_script"; then
+        echo -e "${red}The downloaded ARM64 compatibility installer failed its Bash syntax check.${plain}" >&2
+        rm -rf "$helper_dir"
+        exit 1
+    fi
+    bash "$helper_script"
+    install_status=$?
+    rm -rf "$helper_dir"
+    exit "$install_status"
+fi
+
 require_supported_release_arch() {
     local release_arch
     release_arch="$(arch)"
