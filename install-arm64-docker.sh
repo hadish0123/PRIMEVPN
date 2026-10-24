@@ -1,0 +1,259 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+umask 077
+
+REPOSITORY="hadish0123/PRIMEVPN"
+CONTAINER_NAME="primevpn-arm64"
+IMAGE="ubuntu:24.04"
+BASE_DIR="${PRIMEVPN_ARM64_DIR:-/opt/primevpn-arm64}"
+
+fail() { printf '\n[ERROR] %s\n' "$*" >&2; exit 1; }
+info() { printf '\n[PRIMEVPN ARM64] %s\n' "$*"; }
+need() { command -v "$1" >/dev/null 2>&1 || fail "Required command not found: $1"; }
+
+[[ ${EUID} -eq 0 ]] || fail "Run as root: sudo bash install-arm64-docker.sh"
+[[ "$(uname -s)" == Linux ]] || fail "This installer supports Linux hosts only."
+case "$(uname -m)" in
+  aarch64|arm64) ;;
+  *) fail "This helper is for ARM64 hosts only (detected: $(uname -m))." ;;
+esac
+for command in docker curl tar sha256sum openssl awk sed grep; do need "$command"; done
+docker info >/dev/null 2>&1 || fail "Docker is not running or this account cannot access it."
+
+if docker ps -a --format '{{.Names}}' | grep -Fxq "$CONTAINER_NAME"; then
+  fail "Container '$CONTAINER_NAME' already exists. It was not changed. Check it with: docker logs --tail 100 $CONTAINER_NAME"
+fi
+if [[ -x /usr/local/primevpn/primevpn ]] || systemctl is-active --quiet primevpn 2>/dev/null; then
+  fail "A native PRIMEVPN installation appears to exist. Refusing to overwrite it."
+fi
+if [[ -e /usr/local/bin/primevpn-arm64 || -L /usr/local/bin/primevpn-arm64 ]]; then
+  fail "/usr/local/bin/primevpn-arm64 already exists. Refusing to replace an existing command."
+fi
+
+PANEL_PORT="${PRIMEVPN_PANEL_PORT:-2053}"
+if [[ -t 0 && -z "${PRIMEVPN_PANEL_PORT:-}" ]]; then
+  read -rp "Panel port [2053]: " entered_port || true
+  [[ -z "${entered_port:-}" ]] || PANEL_PORT="$entered_port"
+fi
+[[ "$PANEL_PORT" =~ ^[0-9]{1,5}$ ]] || fail "Panel port must be a number between 1 and 65535."
+(( PANEL_PORT >= 1 && PANEL_PORT <= 65535 )) || fail "Panel port must be between 1 and 65535."
+if command -v ss >/dev/null 2>&1 && ss -ltnH 2>/dev/null | awk -v p=":${PANEL_PORT}" '$4 ~ (p "$") { found=1 } END { exit !found }'; then
+  fail "TCP port $PANEL_PORT is already listening. Run again with PRIMEVPN_PANEL_PORT=<free-port>."
+fi
+
+ADMIN_USER="${PRIMEVPN_ADMIN_USER:-prime$(openssl rand -hex 4)}"
+ADMIN_PASSWORD="${PRIMEVPN_ADMIN_PASSWORD:-$(openssl rand -hex 16)}"
+WEB_BASE_PATH="${PRIMEVPN_WEB_BASE_PATH:-$(openssl rand -hex 12)}"
+[[ "$ADMIN_USER" =~ ^[A-Za-z0-9_.-]{3,32}$ ]] || fail "Admin username must be 3–32 characters: letters, numbers, dot, underscore or hyphen."
+[[ "$ADMIN_PASSWORD" =~ ^[A-Za-z0-9_-]{12,128}$ ]] || fail "Admin password must be 12–128 characters and use letters, numbers, underscore or hyphen."
+[[ "$WEB_BASE_PATH" =~ ^[A-Za-z0-9_-]{8,64}$ ]] || fail "Web base path must be 8–64 alphanumeric/underscore/hyphen characters."
+
+if [[ -e "$BASE_DIR/app/primevpn" ]] || find "$BASE_DIR/state" -maxdepth 1 -type f -name '*.db' -print -quit 2>/dev/null | grep -q .; then
+  fail "Existing PRIMEVPN files found under $BASE_DIR. They were not changed; inspect or back them up before retrying."
+fi
+
+TMP_DIR="$(mktemp -d)"
+cleanup() { rm -rf "$TMP_DIR"; }
+trap cleanup EXIT
+
+info "Enabling the AMD64 emulator for Docker. This does not change PRIMEVPN source files."
+docker run --privileged --rm tonistiigi/binfmt --install amd64
+EMULATED_ARCH="$(docker run --platform linux/amd64 --rm "$IMAGE" uname -m | tail -n 1 | tr -d '\r')"
+[[ "$EMULATED_ARCH" == x86_64 ]] || fail "AMD64 container test failed (reported: $EMULATED_ARCH)."
+
+info "Finding the latest stable official PRIMEVPN release."
+curl -fsSL --retry 3 --connect-timeout 15 --max-time 60 \
+  "https://api.github.com/repos/${REPOSITORY}/releases/latest" -o "$TMP_DIR/release.json"
+TAG="$(sed -n 's/^[[:space:]]*"tag_name":[[:space:]]*"\([^"]*\)".*/\1/p' "$TMP_DIR/release.json" | head -n 1)"
+[[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || fail "Could not safely identify the latest stable release tag."
+ARCHIVE_NAME="primevpn-linux-amd64.tar.gz"
+ARCHIVE_URL="https://github.com/${REPOSITORY}/releases/download/${TAG}/${ARCHIVE_NAME}"
+curl -fL --retry 3 --connect-timeout 15 --max-time 300 "$ARCHIVE_URL" -o "$TMP_DIR/$ARCHIVE_NAME"
+curl -fL --retry 3 --connect-timeout 15 --max-time 60 "${ARCHIVE_URL}.sha256" -o "$TMP_DIR/${ARCHIVE_NAME}.sha256"
+EXPECTED_SHA="$(awk 'NR == 1 { print $1; exit }' "$TMP_DIR/${ARCHIVE_NAME}.sha256")"
+[[ "$EXPECTED_SHA" =~ ^[a-fA-F0-9]{64}$ ]] || fail "Release checksum file is missing or malformed."
+printf '%s  %s\n' "$EXPECTED_SHA" "$TMP_DIR/$ARCHIVE_NAME" | sha256sum -c -
+mkdir -p "$TMP_DIR/extracted"
+tar -xzf "$TMP_DIR/$ARCHIVE_NAME" -C "$TMP_DIR/extracted"
+PACKAGE="$TMP_DIR/extracted/primevpn"
+[[ -s "$PACKAGE/RELEASE_MANIFEST" && -s "$PACKAGE/SHA256SUMS" ]] || fail "Archive is missing the official release manifest/checksums."
+grep -qx 'ARCH=linux-amd64' "$PACKAGE/RELEASE_MANIFEST" || fail "Release manifest is not linux-amd64."
+(
+  cd "$PACKAGE"
+  sha256sum -c SHA256SUMS
+)
+for file in primevpn primevpn.sh bin/xray-linux-amd64 bin/mtg-linux-amd64; do
+  [[ -s "$PACKAGE/$file" ]] || fail "Required release file is missing: $file"
+done
+
+if [[ -d "$BASE_DIR" ]] && find "$BASE_DIR" -mindepth 1 -maxdepth 1 -print -quit | grep -q .; then
+  fail "$BASE_DIR is not empty. Refusing to overwrite existing files. Choose another path with PRIMEVPN_ARM64_DIR or inspect that directory first."
+fi
+mkdir -p "$BASE_DIR"/{dist,app,state,logs,acme,cert}
+cp -a "$PACKAGE" "$BASE_DIR/dist/primevpn"
+chmod 700 "$BASE_DIR" "$BASE_DIR/state" "$BASE_DIR/acme" "$BASE_DIR/cert"
+chmod 755 "$BASE_DIR/app" "$BASE_DIR/logs" "$BASE_DIR/dist"
+
+cat > "$BASE_DIR/bootstrap.env" <<BOOTSTRAP
+PRIMEVPN_PANEL_PORT=$(printf '%q' "$PANEL_PORT")
+PRIMEVPN_ADMIN_USER=$(printf '%q' "$ADMIN_USER")
+PRIMEVPN_ADMIN_PASSWORD=$(printf '%q' "$ADMIN_PASSWORD")
+PRIMEVPN_WEB_BASE_PATH=$(printf '%q' "$WEB_BASE_PATH")
+BOOTSTRAP
+chmod 600 "$BASE_DIR/bootstrap.env"
+
+cat > "$BASE_DIR/entrypoint.sh" <<'CONTAINER_ENTRYPOINT'
+#!/usr/bin/env bash
+set -Eeuo pipefail
+export DEBIAN_FRONTEND=noninteractive
+
+APP_DIR="${XUI_MAIN_FOLDER:-/usr/local/primevpn}"
+STATE_DIR="${XUI_DB_FOLDER:-/etc/primevpn}"
+LOG_DIR="${XUI_LOG_FOLDER:-/var/log/primevpn}"
+
+if ! command -v cron >/dev/null 2>&1 || ! command -v curl >/dev/null 2>&1 || ! command -v socat >/dev/null 2>&1 || ! command -v openssl >/dev/null 2>&1; then
+  apt-get update
+  apt-get install -y --no-install-recommends bash ca-certificates curl cron iproute2 openssl procps socat tar tzdata
+  rm -rf /var/lib/apt/lists/*
+fi
+
+install -d -m 0755 "$APP_DIR" "$LOG_DIR"
+install -d -m 0700 "$STATE_DIR" /root/.acme.sh /root/cert
+if [[ ! -x "$APP_DIR/primevpn" ]]; then
+  cp -a /opt/primevpn-dist/. "$APP_DIR/"
+fi
+for file in "$APP_DIR/primevpn" "$APP_DIR/primevpn.sh" "$APP_DIR/bin/xray-linux-amd64" "$APP_DIR/bin/mtg-linux-amd64"; do
+  [[ -s "$file" ]] || { echo "Missing runtime file: $file" >&2; exit 1; }
+done
+chmod +x "$APP_DIR/primevpn" "$APP_DIR/primevpn.sh" "$APP_DIR/bin/xray-linux-amd64" "$APP_DIR/bin/mtg-linux-amd64"
+cd "$APP_DIR"
+
+if [[ ! -e "$STATE_DIR/.arm64-bootstrap-done" ]]; then
+  [[ -r /run/primevpn-bootstrap.env ]] || { echo 'Missing protected bootstrap configuration.' >&2; exit 1; }
+  # This file is created by the host installer with mode 0600 and mounted read-only.
+  set -a
+  # shellcheck disable=SC1091
+  source /run/primevpn-bootstrap.env
+  set +a
+  "$APP_DIR/primevpn" setting \
+    -port "$PRIMEVPN_PANEL_PORT" \
+    -username "$PRIMEVPN_ADMIN_USER" \
+    -password "$PRIMEVPN_ADMIN_PASSWORD" \
+    -webBasePath "$PRIMEVPN_WEB_BASE_PATH"
+  printf 'Initialized by PRIMEVPN ARM64 container installer.\n' > "$STATE_DIR/.arm64-bootstrap-done"
+  chmod 600 "$STATE_DIR/.arm64-bootstrap-done"
+fi
+
+cron
+exec "$APP_DIR/primevpn"
+CONTAINER_ENTRYPOINT
+chmod 755 "$BASE_DIR/entrypoint.sh"
+bash -n "$BASE_DIR/entrypoint.sh"
+
+cat > "$BASE_DIR/primevpn-arm64" <<'HOST_WRAPPER'
+#!/usr/bin/env bash
+set -Eeuo pipefail
+CONTAINER="primevpn-arm64"
+command_name="${1:-menu}"
+if (( $# > 0 )); then shift; fi
+case "$command_name" in
+  start)   exec docker start "$CONTAINER" ;;
+  stop)    exec docker stop "$CONTAINER" ;;
+  restart) exec docker restart "$CONTAINER" ;;
+  status)
+    docker ps -a --filter "name=^/${CONTAINER}$" --format 'Container: {{.Names}} | State: {{.Status}}'
+    docker exec "$CONTAINER" /usr/local/primevpn/primevpn.sh status || true
+    ;;
+  logs)    exec docker logs --follow --tail 200 "$CONTAINER" ;;
+  shell)   exec docker exec -it "$CONTAINER" bash "$@" ;;
+  version) exec docker exec "$CONTAINER" /usr/local/primevpn/primevpn -v ;;
+  update|update_dev|install)
+    echo "The upstream updater/installer assumes a native systemd service. This command is blocked for the containerized ARM64 install to avoid replacing a running service incorrectly." >&2
+    exit 2
+    ;;
+  menu|"") exec docker exec -it "$CONTAINER" /usr/local/primevpn/primevpn.sh "$@" ;;
+  *)       exec docker exec -it "$CONTAINER" /usr/local/primevpn/primevpn.sh "$command_name" "$@" ;;
+esac
+HOST_WRAPPER
+chmod 755 "$BASE_DIR/primevpn-arm64"
+
+info "Starting PRIMEVPN ${TAG} in an isolated AMD64 Ubuntu container using host networking."
+docker pull --platform linux/amd64 "$IMAGE" >/dev/null
+docker run -d \
+  --name "$CONTAINER_NAME" \
+  --platform linux/amd64 \
+  --network host \
+  --init \
+  --restart unless-stopped \
+  --log-opt max-size=10m \
+  --log-opt max-file=3 \
+  --volume "$BASE_DIR/entrypoint.sh:/usr/local/sbin/primevpn-entrypoint:ro" \
+  --volume "$BASE_DIR/dist/primevpn:/opt/primevpn-dist:ro" \
+  --volume "$BASE_DIR/app:/usr/local/primevpn" \
+  --volume "$BASE_DIR/state:/etc/primevpn" \
+  --volume "$BASE_DIR/logs:/var/log/primevpn" \
+  --volume "$BASE_DIR/acme:/root/.acme.sh" \
+  --volume "$BASE_DIR/cert:/root/cert" \
+  --volume "$BASE_DIR/bootstrap.env:/run/primevpn-bootstrap.env:ro" \
+  --env XUI_IN_DOCKER=true \
+  --env XUI_MAIN_FOLDER=/usr/local/primevpn \
+  --env XUI_DB_FOLDER=/etc/primevpn \
+  --env XUI_LOG_FOLDER=/var/log/primevpn \
+  --env XUI_BIN_FOLDER=bin \
+  --env XUI_DB_TYPE=sqlite \
+  --env XUI_DB_DSN= \
+  --env TZ=UTC \
+  --entrypoint /usr/local/sbin/primevpn-entrypoint \
+  "$IMAGE" >/dev/null
+
+ready=0
+for _ in $(seq 1 180); do
+  if docker exec "$CONTAINER_NAME" test -e /etc/primevpn/.arm64-bootstrap-done >/dev/null 2>&1; then
+    ready=1
+    break
+  fi
+  running="$(docker inspect -f '{{.State.Running}}' "$CONTAINER_NAME" 2>/dev/null || echo false)"
+  if [[ "$running" != true ]]; then
+    docker logs --tail 120 "$CONTAINER_NAME" >&2 || true
+    fail "PRIMEVPN container exited before initialization completed. Container/logs were left available for diagnosis."
+  fi
+  sleep 2
+done
+if [[ $ready -ne 1 ]]; then
+  docker logs --tail 120 "$CONTAINER_NAME" >&2 || true
+  fail "Timed out waiting for initial configuration. The container was left available for diagnosis."
+fi
+
+if command -v systemctl >/dev/null 2>&1; then systemctl enable docker >/dev/null 2>&1 || true; fi
+ln -sfn "$BASE_DIR/primevpn-arm64" /usr/local/bin/primevpn-arm64
+
+cat > "$BASE_DIR/INSTALL-INFO.txt" <<INFO
+PRIMEVPN stable version: ${TAG}
+Install mode: official linux-amd64 release inside Docker AMD64 emulation
+Container: ${CONTAINER_NAME}
+Host networking: enabled
+Panel port: ${PANEL_PORT}
+Web base path: /${WEB_BASE_PATH}
+Admin username: ${ADMIN_USER}
+Admin password: ${ADMIN_PASSWORD}
+Open in browser: http://YOUR_SERVER_IP:${PANEL_PORT}/${WEB_BASE_PATH}
+
+Management commands:
+  primevpn-arm64 status
+  primevpn-arm64 menu
+  primevpn-arm64 restart
+  primevpn-arm64 logs
+
+Data directory: ${BASE_DIR}/state
+Application files: ${BASE_DIR}/app
+This install uses CPU emulation and may be slower than native AMD64. The standard upstream systemd updater is not run on the ARM64 host.
+INFO
+chmod 600 "$BASE_DIR/INSTALL-INFO.txt"
+
+info "Installation bootstrap completed."
+printf '\nVersion: %s\n' "$TAG"
+printf 'Panel URL: http://YOUR_SERVER_IP:%s/%s\n' "$PANEL_PORT" "$WEB_BASE_PATH"
+printf 'Username: %s\nPassword: %s\n' "$ADMIN_USER" "$ADMIN_PASSWORD"
+printf '\nCommands: primevpn-arm64 status | menu | restart | logs\n'
+printf 'Credentials saved (root-only): %s/INSTALL-INFO.txt\n' "$BASE_DIR"
+printf 'Important: configure TLS before using this panel with real credentials over the public internet.\n'
