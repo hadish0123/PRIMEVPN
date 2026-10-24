@@ -24,6 +24,8 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
       - name: Validate main installer syntax
         run: bash -n install.sh
       - name: Validate ARM64 installer syntax
