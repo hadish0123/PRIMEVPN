@@ -5,11 +5,13 @@ on:
     paths:
       - "install.sh"
       - "install-arm64-docker.sh"
+      - "tests/arm64-installer-regression.sh"
       - "ARM64-INSTALL.md"
       - ".github/workflows/arm64-installer-syntax.yml"
   pull_request:
     paths:
       - "install-arm64-docker.sh"
+      - "tests/arm64-installer-regression.sh"
       - ".github/workflows/arm64-installer-syntax.yml"
   workflow_dispatch:
 
@@ -26,5 +28,7 @@ jobs:
         run: bash -n install.sh
       - name: Validate ARM64 installer syntax
         run: bash -n install-arm64-docker.sh
+      - name: Check ARM64 installer recovery invariants
+        run: bash tests/arm64-installer-regression.sh
       - name: Check whitespace errors
-        run: git diff --check
+        run: git diff --check HEAD^ HEAD
