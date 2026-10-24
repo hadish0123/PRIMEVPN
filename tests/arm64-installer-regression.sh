@@ -24,8 +24,8 @@ assert_contains '"$BASE_DIR/bootstrap.env:/run/primevpn-bootstrap.env:ro"'
 # Verify the exact sed repair used on a server's previously generated entrypoint.
 tmp_entrypoint="$(mktemp)"
 trap 'rm -f "$tmp_entrypoint"' EXIT
-printf '%s\\n' 'grep -Fqx "webBasePath: $PRIMEVPN_WEB_BASE_PATH"' > "$tmp_entrypoint"
-sed -i 's|grep -Fqx "webBasePath: \\$PRIMEVPN_WEB_BASE_PATH"|grep -Fqx "webBasePath: /\\$PRIMEVPN_WEB_BASE_PATH/"|' "$tmp_entrypoint"
+printf '%s\n' 'grep -Fqx "webBasePath: $PRIMEVPN_WEB_BASE_PATH"' > "$tmp_entrypoint"
+sed -i 's|grep -Fqx "webBasePath: \$PRIMEVPN_WEB_BASE_PATH"|grep -Fqx "webBasePath: /\$PRIMEVPN_WEB_BASE_PATH/"|' "$tmp_entrypoint"
 grep -Fqx 'grep -Fqx "webBasePath: /$PRIMEVPN_WEB_BASE_PATH/"' "$tmp_entrypoint"
 
 # A crash-retry must validate every old container mount before it removes that container.
