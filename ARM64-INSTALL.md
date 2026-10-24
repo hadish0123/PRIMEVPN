@@ -13,7 +13,7 @@ bash <(curl -Ls https://raw.githubusercontent.com/hadish0123/PRIMEVPN/main/insta
 The ARM64 compatibility path installs the latest stable release only; version arguments are not supported yet. To configure the panel port or credentials non-interactively, see the environment variables supported by `install-arm64-docker.sh`.
 
 The installer:
-- refuses to overwrite a pre-existing native PRIMEVPN install, container, or non-empty data directory;
+- refuses to overwrite a pre-existing native PRIMEVPN install or an unrelated container; a matching interrupted install is validated and recovered in place, with persistent app/database files preserved;
 - enables AMD64 emulation and tests an AMD64 container;
 - downloads the latest stable release and verifies both the archive SHA-256 and every checksum inside the archive;
 - runs the panel in a dedicated container using host networking;
@@ -41,4 +41,4 @@ Use the web panel for normal configuration. The native systemd updater and inter
 - The container uses host networking so panel and proxy listeners can bind directly on the server. Ensure the required firewall ports are open and do not conflict with existing services.
 - The first boot installs required Ubuntu packages inside the container and needs network access.
 - The initial URL is printed as HTTP. Configure TLS before using real credentials over a public network.
-- This helper has been syntax-checked and reviewed against the current release layout, but it has not yet been end-to-end validated on every ARM64 VPS provider/kernel. Keep a backup before relying on it for production.
+- The installer includes CI regression checks for the normalized web base path and safe recovery. A successful CI run validates shell syntax and recovery invariants, but does not replace a live installation test on your specific VPS.
