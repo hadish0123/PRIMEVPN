@@ -253,7 +253,6 @@ Open in browser: http://YOUR_SERVER_IP:${PANEL_PORT}/${WEB_BASE_PATH}
 
 Management commands:
   primevpn-arm64 status
-  primevpn-arm64 menu
   primevpn-arm64 restart
   primevpn-arm64 logs
 
@@ -267,6 +266,6 @@ info "Installation bootstrap completed."
 printf '\nVersion: %s\n' "$TAG"
 printf 'Panel URL: http://YOUR_SERVER_IP:%s/%s\n' "$PANEL_PORT" "$WEB_BASE_PATH"
 printf 'Username: %s\nPassword: %s\n' "$ADMIN_USER" "$ADMIN_PASSWORD"
-printf '\nCommands: primevpn-arm64 status | menu | restart | logs\n'
+printf '\nCommands: primevpn-arm64 status | start | stop | restart | logs | version | shell\n'
 printf 'Credentials saved (root-only): %s/INSTALL-INFO.txt\n' "$BASE_DIR"
 printf 'Important: configure TLS before using this panel with real credentials over the public internet.\n'
