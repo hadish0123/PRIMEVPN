@@ -44,6 +44,11 @@ if [[ "$CONTAINER_EXISTS" -eq 1 || "$RECOVERABLE_TREE" -eq 1 ]]; then
   [[ -d "$BASE_DIR" && ! -L "$BASE_DIR" ]] || fail "Existing container found, but $BASE_DIR is missing or is a symlink. Nothing was changed."
   [[ -s "$BASE_DIR/bootstrap.env" && -s "$BASE_DIR/entrypoint.sh" && -s "$BASE_DIR/dist/primevpn/RELEASE_MANIFEST" ]] || fail "Existing container found, but the expected installer files are incomplete. Container and data were preserved."
   [[ -d "$BASE_DIR/state" && -d "$BASE_DIR/app" && -d "$BASE_DIR/logs" && -d "$BASE_DIR/acme" && -d "$BASE_DIR/cert" ]] || fail "Existing container found, but one or more persistent directories are missing. Nothing was changed."
+  for file in RELEASE_MANIFEST SHA256SUMS primevpn primevpn.sh bin/xray-linux-amd64 bin/mtg-linux-amd64; do
+    [[ -s "$BASE_DIR/dist/primevpn/$file" ]] || fail "Missing recovery release file: $BASE_DIR/dist/primevpn/$file. Existing data was preserved."
+  done
+  grep -qx 'ARCH=linux-amd64' "$BASE_DIR/dist/primevpn/RELEASE_MANIFEST" || fail "Saved release is not the expected linux-amd64 build. Existing data was preserved."
+  (cd "$BASE_DIR/dist/primevpn" && sha256sum -c SHA256SUMS) || fail "Saved release checksum verification failed. Existing data was preserved."
   if [[ "$CONTAINER_EXISTS" -eq 1 ]]; then
     [[ "$(docker inspect -f '{{.Config.Image}}' "$CONTAINER_NAME")" == "$IMAGE" ]] || fail "Container name is occupied by a different image. Nothing was changed."
     RECOVERY_MOUNTS="$(docker inspect -f '{{range .Mounts}}{{.Source}}|{{.Destination}}{{"\n"}}{{end}}' "$CONTAINER_NAME")"
